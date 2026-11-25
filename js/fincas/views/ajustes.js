@@ -1,5 +1,6 @@
 import { db, STORES_FIN, getAjustesFincas, setAjustesFincas } from '../../db.js';
 import { esc, fecha, tamano, toast, confirmar, field, select, fd, diasEntre, hoyISO } from '../../ui.js';
+import { htmlDrive, bindDrive } from '../../driveUI.js';
 import { htmlCopias, bindCopias } from '../../copias.js';
 import { htmlPrueba, bindPrueba } from '../../pruebaUI.js';
 import { elegirArchivos } from '../../files.js';
@@ -10,6 +11,7 @@ export async function render(_, d) {
   return `<div class="page">
   <div class="head"><div><div class="small b" style="color:var(--accent);letter-spacing:.06em;text-transform:uppercase">Admon. Fincas</div><h1>Ajustes y copias · Admon. Fincas</h1><div class="sub">La copia de seguridad incluye las dos partes de la aplicación. El resto de ajustes solo afecta a Admon. Fincas.</div></div></div>
   <div class="row">
+    ${htmlDrive()}
     ${await htmlCopias('fin', aj)}
     <section class="card pad stack grow1"><h2>Importar desde Excel</h2>
       <div>Lee una hoja de contabilidad de cuotas como la de Sant Llorenç, 19: vecinos y coeficientes, cuotas cobradas con su fecha, derramas, costes de obra y gastos por grupo.</div>
@@ -36,7 +38,7 @@ export async function render(_, d) {
 
 export function bind(el, _, d, refresh) {
   const on = (s, fn) => el.querySelectorAll(s).forEach(b => b.addEventListener('click', () => fn(b)));
-  bindCopias(el, 'fin', refresh);
+  bindCopias(el, 'fin', refresh); bindDrive(el, refresh);
   bindPrueba(el, refresh);
   on('[data-a=excel]', () => importarDialogo(d, refresh));
   on('[data-a=borrarTodo]', async () => {

@@ -42,6 +42,19 @@ const wrap = (req) => new Promise((res, rej) => { req.onsuccess = () => res(req.
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+// Registro de cambios para la sincronización con Google Drive: qué se ha tocado y qué se ha borrado
+const LS_SUCIO = 'sync.sucio', LS_BORR = 'sync.borrados';
+const oyentes = [];
+export const alCambiar = (fn) => oyentes.push(fn);
+function cambio() { try { localStorage.setItem(LS_SUCIO, '1'); } catch {} oyentes.forEach(f => { try { f(); } catch {} }); }
+export function leerBorrados() { try { return JSON.parse(localStorage.getItem(LS_BORR) || '[]'); } catch { return []; } }
+export function guardarBorrados(l) { try { localStorage.setItem(LS_BORR, JSON.stringify(l)); } catch {} }
+function anotarBorrado(store, ids) {
+  if (!ids.length) return; const f = new Date().toISOString(), set = new Set(ids.map(String));
+  guardarBorrados(leerBorrados().filter(b => !(b.s === store && set.has(String(b.id)))).concat(ids.map(id => ({ s: store, id, f }))));
+}
+function quitarBorrado(store, id) { const l = leerBorrados(); const n = l.filter(b => !(b.s === store && b.id === id)); if (n.length !== l.length) guardarBorrados(n); }
+
 export const db = {
   all: (store) => tx(store, 'readonly', os => wrap(os.getAll())),
   get: (store, id) => tx(store, 'readonly', os => wrap(os.get(id))),
@@ -49,11 +62,15 @@ export const db = {
   put: (store, obj) => {
     if (!obj.id) obj.id = uid();
     obj.modificado = new Date().toISOString();
-    return tx(store, 'readwrite', os => wrap(os.put(obj))).then(() => obj);
+    return tx(store, 'readwrite', os => wrap(os.put(obj))).then(() => { quitarBorrado(store, obj.id); cambio(); return obj; });
   },
-  del: (store, id) => tx(store, 'readwrite', os => wrap(os.delete(id))),
-  clear: (store) => tx(store, 'readwrite', os => wrap(os.clear())),
-  putRaw: (store, obj) => tx(store, 'readwrite', os => wrap(os.put(obj))),
+  del: (store, id) => tx(store, 'readwrite', os => wrap(os.delete(id))).then(r => { anotarBorrado(store, [id]); cambio(); return r; }),
+  clear: async (store) => { const ids = await tx(store, 'readonly', os => wrap(os.getAllKeys())); const r = await tx(store, 'readwrite', os => wrap(os.clear())); anotarBorrado(store, ids); cambio(); return r; },
+  putRaw: (store, obj) => tx(store, 'readwrite', os => wrap(os.put(obj))).then(r => { quitarBorrado(store, obj.id); cambio(); return r; }),
+  // Solo para la sincronización: escribe sin marcar cambios
+  _poner: (store, obj) => tx(store, 'readwrite', os => wrap(os.put(obj))),
+  _quitar: (store, id) => tx(store, 'readwrite', os => wrap(os.delete(id))),
+  _vaciar: (store) => tx(store, 'readwrite', os => wrap(os.clear())),
 };
 
 export async function getAjustes() {

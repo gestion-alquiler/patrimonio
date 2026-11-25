@@ -70,10 +70,11 @@ En Ajustes de cualquiera de las dos partes, «Cargar datos de prueba» rellena l
 
 En el navegador de cada dispositivo (IndexedDB). **En GitHub solo está el programa, nunca tus datos.**
 
-Hasta que llegue la sincronización con Google Drive (fase 3), cada dispositivo tiene sus propios datos. Para pasarlos de uno a otro:
+**Google Drive (ordenador y móvil con los mismos datos).** En Ajustes y copias → **Conectar con Google Drive**. La app crea en tu Drive la carpeta «Patrimonio · Admon. Fincas» con un archivo `datos.json` y un archivo por cada documento o foto. Cada cambio se sube solo a los pocos segundos y, al abrir la app o volver a ella, se traen los cambios del otro dispositivo. Si se ha cambiado lo mismo en los dos sitios, gana el cambio más reciente. Google pide entrar de nuevo cada hora: entonces aparece «Pulsa para sincronizar». La app solo puede ver los archivos que crea ella (permiso `drive.file`). En un dispositivo nuevo, conecta Drive **antes** de meter datos.
 
-1. En el dispositivo de origen: Ajustes y copias → **Exportar copia completa**.
-2. En el de destino: **Importar / restaurar copia**.
+Proyecto de Google Cloud «Patrimonio»: ID de cliente en `js/drive.js`, origen autorizado `https://gestion-alquiler.github.io`.
+
+Sin Drive, los datos se pasan con una copia: **Exportar copia completa** en un dispositivo e **Importar / restaurar copia** en el otro.
 
 Haz copias a menudo. La app te avisa cuando toca.
 
@@ -97,7 +98,5 @@ Vuelve a subir los archivos nuevos al repositorio (Add file → Upload files) y 
 
 ## Próximas fases
 
-- **Fase 2:** cartas en castellano y català (actualización de renta, fin de contrato, reclamación), informes, recibos de alquiler.
-- **Fase 3:** sincronización con Google Drive entre móvil y ordenador.
-- **Fase 4:** conciliación bancaria con extractos CSV o Excel.
-- **Admon. Fincas, fase 2:** juntas, convocatorias ordinarias y extraordinarias, comunicados, actas, etiquetas y liquidación anual, en castellano y català.
+- Revisión completa con datos de prueba (escritorio y móvil) y ajustes de la versión móvil.
+- Quitar los datos de prueba y empezar con los datos reales.

@@ -2,6 +2,9 @@
 import { db, getAjustes, getAjustesFincas } from './db.js';
 import { esc, fecha, diasEntre, hoyISO } from './ui.js';
 import { ultimaCopiaComun } from './copias.js';
+import * as drive from './drive.js';
+import { pintarEstado } from './driveUI.js';
+import { toast } from './ui.js';
 import * as inicio from './views/inicio.js';
 import * as propiedades from './views/propiedades.js';
 import * as ficha from './views/ficha.js';
@@ -71,6 +74,7 @@ async function pintarSidebar(mod, activo, aj) {
     <div class="sync"><b><span class="dot ${tarde ? 'warn' : ''}"></span>Guardado en este dispositivo</b>
       <span>${u ? `Última copia completa: ${esc(fecha(u))}` : 'Aún no has hecho ninguna copia'}</span>
       <a href="${ajRuta}" style="color:#fff;font-weight:600">${tarde ? 'Hacer copia ahora' : 'Copias y ajustes'}</a></div>`;
+  pintarEstado();
   document.body.classList.toggle('fin', mod === 'fin');
   document.querySelector('meta[name=theme-color]').setAttribute('content', mod === 'fin' ? '#14233A' : '#1B2A25');
 }
@@ -100,7 +104,10 @@ window.addEventListener('hashchange', async () => {
   }
   route();
 });
-route();
+// Google Drive: al recibir cambios de otro dispositivo, vuelve a pintar la pantalla (salvo si hay un formulario a medias)
+drive.alEstado(() => pintarEstado());
+drive.alRecibir(() => { if (window.__guard || document.querySelector('#modal-root .overlay')) toast('Han llegado cambios de Drive: se verán al salir de esta pantalla'); else route(); });
+route().then(() => drive.iniciar());
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

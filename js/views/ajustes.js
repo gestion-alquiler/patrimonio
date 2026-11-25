@@ -1,6 +1,7 @@
 import { db, STORES, getAjustes, setAjustes } from '../db.js';
 import { esc, fecha, tamano, toast, confirmar, field, select, fd, diasEntre, hoyISO } from '../ui.js';
 import { exportarCSV } from '../backup.js';
+import { htmlDrive, bindDrive } from '../driveUI.js';
 import { htmlCopias, bindCopias } from '../copias.js';
 import { htmlPrueba, bindPrueba } from '../pruebaUI.js';
 import { elegirArchivos } from '../files.js';
@@ -13,6 +14,7 @@ export async function render(_, d) {
   return `<div class="page">
   <div class="head"><div><h1>Ajustes y copias · Patrimonio</h1><div class="sub">La copia de seguridad incluye las dos partes de la aplicación. El resto de ajustes solo afecta a Patrimonio.</div></div></div>
   <div class="row">
+    ${htmlDrive()}
     ${await htmlCopias('pat', aj)}
     <section class="card pad stack grow1"><h2>Recordatorio y espacio</h2>
       <form id="frec" class="stack">${select('Recordarme hacer copia cada', 'recordatorioDias', aj.recordatorioDias || 15, [[7, '7 días'], [15, '15 días'], [30, '30 días']])}
@@ -41,7 +43,7 @@ export async function render(_, d) {
 
 export function bind(el, _, d, refresh) {
   const on = (s, fn) => el.querySelectorAll(s).forEach(b => b.addEventListener('click', () => fn(b)));
-  bindCopias(el, 'pat', refresh);
+  bindCopias(el, 'pat', refresh); bindDrive(el, refresh);
   on('[data-csv]', async (b) => { await exportarCSV(b.dataset.csv); toast('Archivo descargado'); });
   bindPrueba(el, refresh);
   on('[data-a=borrarTodo]', async () => {

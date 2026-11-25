@@ -165,5 +165,5 @@ export function enlazarBanco(el, cfg) {
 // Deshace lo que hizo una conciliación: borra lo creado y desvincula lo existente
 export async function deshacerVinculo(v) {
   for (const c of v?.creados || []) await db.del(c.store, c.id);
-  for (const x of v?.vinculados || []) { const o = await db.get(x.store, x.id); if (o) { delete o.banco; if (x.estadoPrevio) o.estado = x.estadoPrevio; await db.putRaw(x.store, o); } }
+  for (const x of v?.vinculados || []) { const o = await db.get(x.store, x.id); if (o) { delete o.banco; if (x.estadoPrevio) o.estado = x.estadoPrevio; await db.put(x.store, o); } }
 }
