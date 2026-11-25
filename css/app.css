@@ -8,6 +8,13 @@
   --ing: #2E7D4F; --gas: #D98E2B;
   --r: 12px;
 }
+/* Admon. Fincas: tema azul */
+body.fin {
+  --bg: #F2F4F8; --line: #DCE2EB; --line2: #E8ECF2; --soft: #F7F9FC; --field: #C6CFDC;
+  --accent: #2C5585; --accent-dk: #1D3D63; --accent-soft: #E3EAF5;
+  --side: #14233A; --side2: #1E3352; --side3: #2A4A75; --side-ink: #D3DCEA;
+}
+body.fin .nav-title, body.fin .nav-soon, body.fin .mod small { color: #9DB0CC; }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.45 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -28,6 +35,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .mod { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; text-decoration: none; color: var(--side-ink); font: 700 16px 'Space Grotesk', sans-serif; }
 .mod.on { background: var(--side3); color: #fff; }
 .mod.disabled { opacity: .55; cursor: default; }
+.mod:hover { background: var(--side2); color: #fff; }
 .mod small { display: block; font: 500 11px Inter, sans-serif; color: #9FB0A8; }
 .mod-ico { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; }
 .mod-ico.green { background: #3E8E6F; } .mod-ico.blue { background: #4A7FC1; }
@@ -66,6 +74,10 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .prop { overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: box-shadow .15s; }
 .prop:hover { box-shadow: 0 6px 20px rgba(27,31,29,.08); }
 .prop .ph { height: 110px; background: #E6E1D6 center/cover no-repeat; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px; }
+.prop .ph.sinfoto { background: #E6E1D6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B5AE9F' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z'/%3E%3C/svg%3E") center 22px/36px no-repeat; }
+.portada { height: 170px; border-radius: 10px; background: #E6E1D6 center/cover no-repeat; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; position: relative; }
+.portada:not(.vacia) .actions { position: absolute; right: 10px; bottom: 10px; }
+.solo-movil { display: none; }
 .prop .bd { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .prop .t { font: 600 17px 'Space Grotesk', sans-serif; }
 .prop .ft { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line2); }
@@ -86,6 +98,7 @@ dl.dl dt { color: var(--muted); } dl.dl dd { margin: 0; }
 .field input, .field select, .field textarea, .inp { min-height: 42px; padding: 0 12px; border: 1px solid var(--field); border-radius: 8px; font: 14px Inter, sans-serif; color: var(--ink); background: #fff; width: 100%; }
 .field textarea { padding: 10px 12px; min-height: 80px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus, .inp:focus, .btn:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid #9CC5B5; outline-offset: 1px; }
+body.fin .field input:focus, body.fin .field select:focus, body.fin .field textarea:focus, body.fin .inp:focus, body.fin .btn:focus-visible, body.fin a:focus-visible, body.fin button:focus-visible { outline-color: #9DB7DA; }
 .field .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
 .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 14px; }
 .fgrid .span2 { grid-column: 1 / -1; }
@@ -166,6 +179,8 @@ tr.tot td { background: var(--bg); font-weight: 800; }
 .note .f { flex: 0 0 92px; font-size: 13px; color: var(--muted); font-weight: 600; }
 
 @media (max-width: 760px) {
+  .solo-pc { display: none !important; }
+  .solo-movil { display: block; }
   .sidebar { padding: 12px; gap: 10px; flex-basis: 100%; }
   .mods { flex-direction: row; padding-bottom: 10px; }
   .mod { font-size: 14px; flex: 1; }

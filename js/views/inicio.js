@@ -1,6 +1,7 @@
 import { esc, eur, fecha, hoyISO, diasEntre, MESES, MES3 } from '../ui.js';
 import { contratoActivo, deudaContrato, balanceAnual, estadoMes } from '../calc.js';
 import { resumenDeuda } from './ficha.js';
+import { ultimaCopiaComun, esMovil } from '../copias.js';
 
 export async function render(_, d) {
   const hoy = hoyISO(), y = Number(hoy.slice(0, 4)), m = Number(hoy.slice(5, 7));
@@ -33,8 +34,8 @@ export async function render(_, d) {
   pendientes.forEach(g => { (porProp[g.propiedadId] = porProp[g.propiedadId] || []).push(g); });
   Object.entries(porProp).forEach(([pid, gs]) => { const p = d.props.find(x => x.id === pid); const tot = gs.reduce((a, g) => a + Number(g.importe || 0), 0);
     avisos.push({ cls: 'warn', tipo: 'Pagar', t: `${p?.direccion || ''} · ${gs.length === 1 ? gs[0].concepto : gs.length + ' gastos pendientes'}`, dsc: `${eur(tot)}${gs.length === 1 ? ' · vence el ' + fecha(gs[0].fecha) : ''}`, href: `#/propiedad/${pid}/gastos` }); });
-  const u = d.aj.ultimaCopia, dias = u ? diasEntre(u.slice(0, 10), hoy) : null;
-  if (d.props.length && (dias === null || dias > (d.aj.recordatorioDias || 15))) avisos.push({ cls: 'neutral', tipo: 'Copia', t: 'Copia de seguridad', dsc: u ? `La última es de hace ${dias} días` : 'Aún no has hecho ninguna', href: '#/ajustes' });
+  const u = await ultimaCopiaComun(), dias = u ? diasEntre(u.slice(0, 10), hoy) : null;
+  if (d.props.length && !esMovil() && (dias === null || dias > (d.aj.recordatorioDias || 15))) avisos.push({ cls: 'neutral', tipo: 'Copia', t: 'Copia de seguridad completa', dsc: u ? `La última es de hace ${dias} días` : 'Aún no has hecho ninguna', href: '#/ajustes' });
 
   const ultGastos = d.gastos.filter(g => g.fecha && g.fecha <= hoy).sort((a, b) => a.fecha < b.fecha ? 1 : -1).slice(0, 4);
   const ft = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); const fechaTxt = ft.charAt(0).toUpperCase() + ft.slice(1);

@@ -1,7 +1,9 @@
 // Base de datos local (IndexedDB). Todo se guarda en el navegador del dispositivo.
 const DB_NAME = 'patrimonio';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 export const STORES = ['propiedades', 'inquilinos', 'contratos', 'pagos', 'gastos', 'documentos', 'notas', 'ajustes'];
+// Admon. Fincas
+export const STORES_FIN = ['f_comunidades', 'f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas'];
 
 let dbp = null;
 function open() {
@@ -10,15 +12,16 @@ function open() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const s of STORES) {
+      for (const s of STORES.concat(STORES_FIN)) {
         if (!db.objectStoreNames.contains(s)) {
           const os = db.createObjectStore(s, { keyPath: 'id' });
           if (['contratos', 'pagos', 'gastos', 'documentos', 'notas'].includes(s)) os.createIndex('propiedadId', 'propiedadId');
           if (s === 'pagos') os.createIndex('contratoId', 'contratoId');
+          if (['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas'].includes(s)) os.createIndex('comunidadId', 'comunidadId');
         }
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { const db = req.result; db.onversionchange = () => { db.close(); location.reload(); }; resolve(db); };
     req.onerror = () => reject(req.error);
   });
   return dbp;
@@ -65,4 +68,17 @@ export async function borrarPropiedad(id) {
     for (const it of items) await db.del(s, it.id);
   }
   await db.del('propiedades', id);
+}
+
+export async function getAjustesFincas() {
+  return (await db.get('ajustes', 'fincas')) || { id: 'fincas', recordatorioDias: 15, ultimaCopia: null, idioma: 'ca', admin: {} };
+}
+export async function setAjustesFincas(a) { a.id = 'fincas'; return db.put('ajustes', a); }
+
+export async function borrarComunidad(id) {
+  for (const s of ['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas']) {
+    const items = await db.by(s, 'comunidadId', id);
+    for (const it of items) await db.del(s, it.id);
+  }
+  await db.del('f_comunidades', id);
 }

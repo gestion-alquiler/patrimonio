@@ -1,6 +1,6 @@
 import { db, borrarPropiedad } from '../db.js';
 import { esc, eur, num, fmtNum, modal, confirmar, field, select, textarea, money, fd, toast, fecha, fechaCorta, hoyISO, MESES, MES3, tamano, diasEntre, descargar, ICON } from '../ui.js';
-import { contratoActivo, deudaContrato, balanceAnual, estadoMes, esperado, rentaEn, cubreMes, CATEGORIAS_GASTO, TIPOS_DOC, DOCS_INQUILINO } from '../calc.js';
+import { contratoActivo, deudaContrato, balanceAnual, estadoMes, esperado, rentaEn, cubreMes, CATEGORIAS_GASTO, TIPOS_DOC, DOCS_INQUILINO, fotoPortada } from '../calc.js';
 import { formPropiedad } from './propiedades.js';
 import { guardarArchivo, elegirArchivos, abrirDoc } from '../files.js';
 
@@ -63,7 +63,7 @@ function resumen({ p, bal, d }) {
     </tbody></table>
     <div class="small muted">Margen = ingresos cobrados − gastos del año. ${inv ? `Sobre la inversión (${eur(inv, 0)}) supone un ${(bal.margen / inv * 100).toFixed(1).replace('.', ',')} % anual.` : 'Añade el precio de compra para ver la rentabilidad sobre la inversión.'}</div>
   </section>
-  <section class="card pad stack grow1"><div class="head" style="align-items:center"><h2>Datos del inmueble</h2><button class="linkbtn" data-a="editarProp">Editar</button></div>
+  <section class="card pad stack grow1">${portadaHtml(p, d)}<div class="head" style="align-items:center"><h2>Datos del inmueble</h2><button class="linkbtn" data-a="editarProp">Editar</button></div>
     <dl class="dl">
       <dt>Ref. catastral</dt><dd>${esc(p.refCatastral) || '—'}</dd>
       <dt>Compra</dt><dd class="num">${p.fechaCompra ? fecha(p.fechaCompra) : '—'}${p.precioCompra ? ' · ' + eur(p.precioCompra, 0) : ''}</dd>
@@ -76,6 +76,14 @@ function resumen({ p, bal, d }) {
     ${p.obs ? `<div class="small" style="white-space:pre-line">${esc(p.obs)}</div>` : ''}
     <button class="btn danger sm" data-a="borrarProp" style="align-self:flex-start;margin-top:8px">Borrar propiedad</button>
   </section></div>`;
+}
+
+function portadaHtml(p, d) {
+  const f = fotoPortada(p, d.documentos);
+  let u = ''; if (f) { u = URL.createObjectURL(f.blob); urls.push(u); }
+  return `<div class="portada ${u ? '' : 'vacia'}" style="${u ? `background-image:url('${u}')` : ''}">
+    ${u ? '' : '<span class="small muted">Sin foto de portada</span>'}
+    <div class="actions"><button class="btn sm" data-a="portada">${u ? 'Cambiar foto' : 'Poner foto'}</button>${u ? '<button class="btn sm" data-a="quitarPortada">Quitar</button>' : ''}</div></div>`;
 }
 
 function movimientos(p, d) {
@@ -179,7 +187,7 @@ function documentos({ p, d }) {
     <div class="drop" id="drop">${ICON.up}<div><b>Arrastra aquí</b> PDF o fotos, o pulsa «Subir»</div><div class="small">Las fotos se reducen a 1600 px (unos 300 KB) al guardarlas.</div></div>
     <div class="docs">${docs.map(x => { let bg = ''; if (x.mime?.startsWith('image/') && x.blob) { const u = URL.createObjectURL(x.blob); urls.push(u); bg = `background-image:url('${u}')`; }
       return `<div class="doc"><div class="th" style="${bg}">${bg ? '' : (x.mime === 'application/pdf' ? 'PDF' : 'ARCHIVO')}</div><div class="bd"><div class="b" style="font-size:13px;overflow-wrap:anywhere">${esc(x.nombre)}</div><div class="small muted">${tipoDoc(x.tipo)} · ${tamano(x.size || 0)} · ${fecha(x.fecha)}</div>
-      <div class="actions"><button class="btn sm" data-ver="${x.id}">Ver</button><button class="btn sm" data-bajar="${x.id}">Descargar</button><button class="btn sm" data-editdoc="${x.id}">Editar</button></div></div></div>`; }).join('') || '<div class="muted">Todavía no hay documentos.</div>'}</div></section>`;
+      <div class="actions"><button class="btn sm" data-ver="${x.id}">Ver</button><button class="btn sm" data-bajar="${x.id}">Descargar</button><button class="btn sm" data-editdoc="${x.id}">Editar</button>${bg ? (fotoPortada(p, d.documentos)?.id === x.id ? '<span class="badge ok">Portada</span>' : `<button class="btn sm" data-portada="${x.id}">Usar de portada</button>`) : ''}</div></div></div>`; }).join('') || '<div class="muted">Todavía no hay documentos.</div>'}</div></section>`;
 }
 
 function historico({ p, d }) {
@@ -356,6 +364,14 @@ export function bind(el, [id, tab], d, refresh) {
       onSubmit: async (f) => { const v = fd(f); await db.put('documentos', { ...x, ...v }); toast('Documento guardado'); refresh(); } });
     document.querySelector('[data-del]').onclick = async () => { if (await confirmar('Borrar documento', '¿Seguro que quieres borrar este documento?')) { await db.del('documentos', x.id); toast('Documento borrado'); refresh(); } }; });
   on('[data-a=subir]', async () => subir(p, await elegirArchivos(), {}, refresh));
+  on('[data-portada]', async (b) => { await db.put('propiedades', { ...p, portadaId: b.dataset.portada }); toast('Foto de portada cambiada'); refresh(); });
+  on('[data-a=quitarPortada]', async () => { const f = fotoPortada(p, d.documentos); if (!f) return;
+    if (await confirmar('Quitar foto de portada', 'La foto se borrará de los documentos de esta propiedad.', 'Quitar')) { await db.del('documentos', f.id); await db.put('propiedades', { ...p, portadaId: null }); toast('Foto quitada'); refresh(); } });
+  on('[data-a=portada]', async () => {
+    const [f] = await elegirArchivos({ accept: 'image/*', multiple: false }); if (!f) return;
+    const doc = await guardarArchivo(f, { propiedadId: p.id, tipo: 'foto', nombre: 'Foto de portada' });
+    await db.put('propiedades', { ...p, portadaId: doc.id }); toast('Foto de portada guardada'); refresh();
+  });
   on('[data-a=foto]', async () => subir(p, await elegirArchivos({ accept: 'image/*', capture: true, multiple: false }), { tipo: 'foto' }, refresh));
   on('[data-subir]', async (b) => subir(p, await elegirArchivos(), { contratoId: c?.id, tipo: b.dataset.subir }, refresh));
   on('[data-a=subirInq]', () => {

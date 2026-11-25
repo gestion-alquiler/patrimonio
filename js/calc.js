@@ -90,3 +90,9 @@ export function balanceAnual(y, pagos, gastos, propiedadId = null) {
 export const CATEGORIAS_GASTO = ['Comunidad', 'IBI', 'Mantenimiento', 'Extraordinario / obras', 'Seguro', 'Basuras', 'Suministros', 'Gestoría / honorarios', 'Otros'];
 export const TIPOS_DOC = [['contrato', 'Contrato'], ['dni', 'DNI / NIE'], ['cuenta', 'Certificado de cuenta'], ['nominas', 'Nóminas'], ['trabajo', 'Contrato de trabajo'], ['aval', 'Aval / DNI avalista'], ['renta', 'Declaración de la renta'], ['fianza', 'Depósito de fianza'], ['inventario', 'Inventario / entrega de llaves'], ['escritura', 'Escritura'], ['certificado', 'Certificado energético'], ['factura', 'Factura / recibo'], ['foto', 'Foto'], ['otro', 'Otro']];
 export const DOCS_INQUILINO = ['dni', 'cuenta', 'nominas', 'trabajo', 'aval', 'renta', 'fianza', 'inventario'];
+
+// Foto de portada de una propiedad: la elegida o, si no hay, la primera foto subida
+export function fotoPortada(p, documentos) {
+  const fotos = documentos.filter(x => x.propiedadId === p.id && x.blob && (x.mime || '').startsWith('image/'));
+  return fotos.find(x => x.id === p.portadaId) || fotos.find(x => x.tipo === 'foto') || null;
+}

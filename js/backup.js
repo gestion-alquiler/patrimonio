@@ -1,60 +1,90 @@
-// Copias de seguridad completas (.zip) y exportación a CSV
-import { db, STORES, getAjustes, setAjustes } from './db.js';
+// Copias de seguridad completas (.zip) y exportación a CSV.
+// Patrimonio y Admon. Fincas tienen copias independientes: la de uno no toca al otro.
+import { db, STORES, STORES_FIN } from './db.js';
 import { descargar, hoyISO, MESES } from './ui.js';
 
-const FORMATO = 'patrimonio-copia';
+const MOD = {
+  pat: { formato: 'patrimonio-copia', stores: STORES.filter(s => s !== 'ajustes'), ajustesId: 'app', archivo: 'copia_patrimonio', nombre: 'Patrimonio' },
+  fin: { formato: 'fincas-copia', stores: STORES_FIN, ajustesId: 'fincas', archivo: 'copia_fincas', nombre: 'Admon. Fincas' },
+};
+const COMPLETA = 'gestion-copia';
+export const NOMBRE = { pat: 'Patrimonio', fin: 'Admon. Fincas' };
 
-export async function exportarZip() {
+// partes: ['pat','fin'] = copia completa (recomendada); ['pat'] o ['fin'] = solo una parte
+export async function exportarZip(partes = ['pat', 'fin']) {
   if (!window.JSZip) throw new Error('No se ha cargado la librería de compresión');
+  if (typeof partes === 'string') partes = [partes];
   const zip = new window.JSZip();
-  const datos = {};
-  for (const s of STORES) {
-    const items = await db.all(s);
-    if (s === 'documentos') {
-      datos[s] = [];
-      for (const d of items) {
-        const { blob, ...meta } = d;
-        if (blob) { meta.ruta = `documentos/${d.id}`; zip.file(meta.ruta, blob); }
-        datos[s].push(meta);
-      }
-    } else datos[s] = items;
+  const datos = { ajustes: [] };
+  for (const k of partes) {
+    for (const s of MOD[k].stores) {
+      const items = await db.all(s);
+      if (s === 'documentos') {
+        datos[s] = [];
+        for (const d of items) {
+          const { blob, ...meta } = d;
+          if (blob) { meta.ruta = `documentos/${d.id}`; zip.file(meta.ruta, blob); }
+          datos[s].push(meta);
+        }
+      } else datos[s] = items;
+    }
+    datos.ajustes.push((await db.get('ajustes', MOD[k].ajustesId)) || { id: MOD[k].ajustesId });
   }
-  zip.file('datos.json', JSON.stringify({ formato: FORMATO, version: 1, exportado: new Date().toISOString(), datos }, null, 1));
-  zip.file('LEEME.txt', 'Copia de seguridad de la app Patrimonio.\nPara restaurarla: Ajustes y copias > Importar / restaurar copia.\nNo modifiques el contenido de este archivo.');
+  const completa = partes.length > 1;
+  const nombre = completa ? 'Patrimonio y Admon. Fincas' : MOD[partes[0]].nombre;
+  zip.file('datos.json', JSON.stringify({ formato: completa ? COMPLETA : MOD[partes[0]].formato, version: 2, partes, exportado: new Date().toISOString(), datos }, null, 1));
+  zip.file('LEEME.txt', `Copia de seguridad de ${nombre}.\nPara restaurarla: Ajustes y copias > Importar / restaurar copia (desde Patrimonio o desde Admon. Fincas).\nNo modifiques el contenido de este archivo.`);
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-  descargar(blob, `copia_patrimonio_${hoyISO()}.zip`);
-  const aj = await getAjustes(); aj.ultimaCopia = new Date().toISOString(); await setAjustes(aj);
+  descargar(blob, `${completa ? 'copia_completa' : MOD[partes[0]].archivo}_${hoyISO()}.zip`);
+  const ahora = new Date().toISOString();
+  for (const k of partes) { const aj = (await db.get('ajustes', MOD[k].ajustesId)) || { id: MOD[k].ajustesId }; aj.ultimaCopia = ahora; await db.put('ajustes', aj); }
   return blob.size;
 }
 
+// Lee cualquier copia (completa o de una sola parte) y dice qué partes contiene
 export async function leerZip(file) {
-  const zip = await window.JSZip.loadAsync(file);
+  let zip;
+  try { zip = await window.JSZip.loadAsync(file); } catch { throw new Error('El archivo no es una copia de seguridad (.zip)'); }
   const f = zip.file('datos.json');
-  if (!f) throw new Error('El archivo no es una copia de Patrimonio');
+  if (!f) throw new Error('El archivo no es una copia de seguridad de esta aplicación');
   const json = JSON.parse(await f.async('string'));
-  if (json.formato !== FORMATO) throw new Error('El archivo no es una copia de Patrimonio');
-  return { zip, json };
+  let partes;
+  if (json.formato === COMPLETA) partes = json.partes || ['pat', 'fin'];
+  else { const k = Object.keys(MOD).find(x => MOD[x].formato === json.formato); if (!k) throw new Error('El archivo no es una copia de seguridad de esta aplicación'); partes = [k]; }
+  const n = json.datos;
+  const resumen = {
+    pat: `${(n.propiedades || []).length} ${(n.propiedades || []).length === 1 ? 'propiedad' : 'propiedades'}, ${(n.pagos || []).length} cobros, ${(n.gastos || []).length} gastos y ${(n.documentos || []).length} documentos`,
+    fin: `${(n.f_comunidades || []).length} ${(n.f_comunidades || []).length === 1 ? 'comunidad' : 'comunidades'}, ${(n.f_vecinos || []).length} vecinos y ${(n.f_cobros || []).length} cobros`,
+  };
+  return { zip, json, partes, resumen };
 }
 
-export async function restaurar({ zip, json }) {
-  const aj = await getAjustes();
-  for (const s of STORES) await db.clear(s);
-  for (const s of STORES) {
-    for (const it of (json.datos[s] || [])) {
-      if (s === 'documentos' && it.ruta) {
-        const zf = zip.file(it.ruta);
-        if (zf) { const ab = await zf.async('blob'); it.blob = new File([ab], it.archivo || it.nombre || 'archivo', { type: it.mime || 'application/octet-stream' }); }
-        delete it.ruta;
+// Sustituye en este dispositivo solo las partes indicadas
+export async function restaurar({ zip, json }, partes) {
+  if (typeof partes === 'string') partes = [partes];
+  for (const k of partes) {
+    const M = MOD[k];
+    const previo = (await db.get('ajustes', M.ajustesId)) || {};
+    for (const s of M.stores) await db.clear(s);
+    for (const s of M.stores) {
+      for (const it of (json.datos[s] || [])) {
+        if (s === 'documentos' && it.ruta) {
+          const zf = zip.file(it.ruta);
+          if (zf) { const ab = await zf.async('blob'); it.blob = new File([ab], it.archivo || it.nombre || 'archivo', { type: it.mime || 'application/octet-stream' }); }
+          delete it.ruta;
+        }
+        await db.putRaw(s, it);
       }
-      await db.putRaw(s, it);
     }
+    const aj = (json.datos.ajustes || []).find(a => a.id === M.ajustesId);
+    if (aj) { aj.ultimaCopia = previo.ultimaCopia || aj.ultimaCopia; await db.putRaw('ajustes', aj); }
   }
-  const nuevo = await getAjustes(); nuevo.ultimaCopia = aj.ultimaCopia || nuevo.ultimaCopia; await setAjustes(nuevo);
 }
 
 const csvCell = (v) => { const s = String(v ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const dec = (n) => String(Number(n || 0).toFixed(2)).replace('.', ',');
-function csv(rows) { return '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n'); }
+export function csv(rows) { return '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n'); }
+export { dec };
 
 export async function exportarCSV(tipo) {
   const [props, inqs, contratos, pagos, gastos] = await Promise.all(['propiedades', 'inquilinos', 'contratos', 'pagos', 'gastos'].map(s => db.all(s)));

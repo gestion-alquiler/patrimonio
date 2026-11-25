@@ -1,7 +1,8 @@
 // Permite abrir la app sin conexión. Cambia VERSION al publicar cambios.
-const VERSION = 'patrimonio-v1.0.0';
-const FILES = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/db.js', 'js/ui.js', 'js/calc.js', 'js/files.js', 'js/backup.js', 'js/ejemplo.js',
-  'js/views/inicio.js', 'js/views/propiedades.js', 'js/views/ficha.js', 'js/views/ajustes.js', 'vendor/jszip.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const VERSION = 'patrimonio-v2.2.0';
+const FILES = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/db.js', 'js/ui.js', 'js/calc.js', 'js/files.js', 'js/backup.js', 'js/copias.js', 'js/ejemplo.js',
+  'js/views/inicio.js', 'js/views/propiedades.js', 'js/views/ficha.js', 'js/views/ajustes.js',
+  'js/fincas/calc.js', 'js/fincas/importar.js', 'js/fincas/views/comunidades.js', 'js/fincas/views/comunidad.js', 'js/fincas/views/ajustes.js', 'vendor/jszip.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

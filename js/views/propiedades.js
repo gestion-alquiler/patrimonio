@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { esc, eur, num, modal, field, select, textarea, money, fd, toast } from '../ui.js';
-import { contratoActivo, deudaContrato, balanceAnual } from '../calc.js';
+import { contratoActivo, deudaContrato, balanceAnual, fotoPortada } from '../calc.js';
 import { cargarEjemplo } from '../ejemplo.js';
 
 let filtro = 'todas', busca = '';
@@ -13,7 +13,7 @@ export async function render(_, d) {
     const c = contratoActivo(d.contratos, p.id);
     const deuda = c ? deudaContrato(c, d.pagos).total : 0;
     const bal = balanceAnual(y, d.pagos, d.gastos, p.id);
-    const foto = d.documentos.find(x => x.propiedadId === p.id && x.tipo === 'foto' && x.blob);
+    const foto = fotoPortada(p, d.documentos);
     let fotoUrl = '';
     if (foto) { fotoUrl = URL.createObjectURL(foto.blob); urls.push(fotoUrl); }
     const estado = !c ? ['Libre', 'neutral'] : deuda > 0.005 ? ['Debe ' + eur(deuda), 'bad'] : ['Al día', 'ok'];
@@ -32,7 +32,7 @@ export async function render(_, d) {
   ${d.props.length ? `<div class="head" style="align-items:center"><div class="chips" role="group" aria-label="Filtrar">${chips}</div>
     <label class="sr" for="busca">Buscar</label><input id="busca" class="search" type="search" placeholder="Dirección, zona o inquilino…" value="${esc(busca)}"></div>
   <div class="grid-props">${vis.map(i => `<a class="card prop" href="#/propiedad/${i.p.id}">
-    <div class="ph" style="${i.fotoUrl ? `background-image:url('${i.fotoUrl}')` : ''}"><span class="badge ${i.estado[1]}">${esc(i.estado[0])}</span><span class="badge neutral">${esc(i.p.tipo || 'Inmueble')}</span></div>
+    <div class="ph ${i.fotoUrl ? '' : 'sinfoto'}" style="${i.fotoUrl ? `background-image:url('${i.fotoUrl}')` : ''}"><span class="badge ${i.estado[1]}">${esc(i.estado[0])}</span><span class="badge neutral">${esc(i.p.tipo || 'Inmueble')}</span></div>
     <div class="bd"><div><div class="t">${esc(i.p.direccion)}</div><div class="small muted">${esc([i.p.zona, i.p.m2 ? i.p.m2 + ' m²' : ''].filter(Boolean).join(' · ')) || '&nbsp;'}</div></div>
     <div class="small" style="display:flex;gap:8px;align-items:center">${'<svg aria-hidden="true" viewBox="0 0 24 24" style="color:#5B625E"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'}${esc(i.inq ? i.inq.nombre : 'Sin inquilino')}</div>
     <div class="ft"><div><div class="small muted">Renta</div><b class="num">${i.c ? eur(i.c.renta) : '—'}</b></div>

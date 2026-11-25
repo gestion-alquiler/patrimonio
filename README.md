@@ -1,4 +1,4 @@
-# Patrimonio · gestión de alquileres (fase 1)
+# Patrimonio · Admon. Fincas (versión 2)
 
 App web para gestionar viviendas y locales en alquiler: propiedades, inquilinos, contratos, cobros, gastos, balance, documentos, notas y copias de seguridad. Funciona en ordenador y móvil, también sin conexión.
 
@@ -12,9 +12,29 @@ App web para gestionar viviendas y locales en alquiler: propiedades, inquilinos,
   - Inquilino y contrato: datos, renta, fianza, basura, actualización de renta, finalizar contrato, documentación del inquilino.
   - Cobros: cuadrícula de 12 meses con importe y fecha; las casillas vacías con borde rojo están vencidas sin cobrar.
   - Gastos: con repetición mensual o trimestral, pendiente o pagado, y factura adjunta.
+  - Foto de portada: se pone desde el Resumen («Poner foto») o desde Documentos («Usar de portada»), y sale en la lista de propiedades.
   - Documentos y fotos: las fotos se reducen a 1600 px al guardarlas.
   - Histórico de inquilinos y notas.
-- **Ajustes y copias:** copia completa en .zip (exportar e importar), exportación a CSV para Excel, datos del propietario, datos de ejemplo y borrar todo.
+- **Ajustes:** exportación a CSV para Excel, datos del propietario, datos de ejemplo y borrar todo.
+
+### Admon. Fincas (nuevo en la versión 2, en azul)
+
+- **Comunidades:** alta, edición, archivar (dar de baja conservando los datos), recuperar y eliminar.
+- **Vecinos por piso:** propietario, DNI, contacto, idioma, IBAN, forma de pago, coeficiente, cuota (con historial de cambios), ocupante, saldo anterior y propietarios anteriores.
+- **Cuotas:** cuadrícula de 12 meses con importe y fecha de cobro; la casilla queda vacía si no ha pagado. Cobro de un mes a varios vecinos a la vez (remesa) y exportación a CSV.
+- **Gastos:** por coeficiente, a partes iguales o de derrama/obra; pendientes o pagados; repetición mensual o trimestral.
+- **Balance:** saldo del banco, cobros y pagos por mes y libro de movimientos editable.
+- **Derramas:** reparto por coeficiente o a partes iguales, en uno o varios plazos, con control de cobro por vecino, presupuesto de la obra y pagos.
+- **Datos de la comunidad:** calcular cuotas desde el presupuesto y subir o bajar todas las cuotas un % desde un mes.
+- **Importar desde Excel:** lee la hoja de contabilidad de cuotas (como la de Sant Llorenç, 19), enseña un resumen y avisa de lo que conviene revisar.
+- **Ajustes propios:** datos del administrador e idioma por defecto.
+
+### Copias de seguridad (las dos partes juntas)
+
+- **Exportar copia completa:** un solo .zip con Patrimonio y Admon. Fincas, desde los Ajustes de cualquiera de las dos partes.
+- **Importar / restaurar copia:** desde cualquiera de las dos partes. Si la copia trae las dos, eliges: todo, solo Patrimonio o solo Admon. Fincas. Lo que no restauras no se toca.
+- **Solo en el ordenador:** en el móvil no aparecen las copias.
+- **Copia de una sola parte:** opción secundaria. Las copias antiguas también se pueden restaurar.
 
 Todo se puede editar y borrar.
 
@@ -52,4 +72,4 @@ Vuelve a subir los archivos nuevos al repositorio (Add file → Upload files) y 
 - **Fase 2:** cartas en castellano y català (actualización de renta, fin de contrato, reclamación), informes, recibos de alquiler.
 - **Fase 3:** sincronización con Google Drive entre móvil y ordenador.
 - **Fase 4:** conciliación bancaria con extractos CSV o Excel.
-- **Fase 5:** módulo Admon. Fincas (comunidades, cuotas, derramas, juntas, actas y liquidaciones), con importación del Excel actual.
+- **Admon. Fincas, fase 2:** juntas, convocatorias ordinarias y extraordinarias, comunicados, actas, etiquetas y liquidación anual, en castellano y català.
