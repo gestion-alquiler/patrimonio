@@ -11,29 +11,31 @@ import * as comunidad from './fincas/views/comunidad.js';
 import * as proveedoresV from './fincas/views/proveedores.js';
 import * as fajustes from './fincas/views/ajustes.js';
 import { vista as vistaPlantillas } from './views/plantillas.js';
+import * as informes from './views/informes.js';
+import * as conciliacion from './views/conciliacion.js';
 const plantPat = vistaPlantillas('pat'), plantFin = vistaPlantillas('fin');
 
 export async function cargarTodo() {
-  const [props, inqs, contratos, pagos, gastos, documentos, notas, cartas, aj] = await Promise.all([
-    db.all('propiedades'), db.all('inquilinos'), db.all('contratos'), db.all('pagos'), db.all('gastos'), db.all('documentos'), db.all('notas'), db.all('cartas'), getAjustes(),
+  const [props, inqs, contratos, pagos, gastos, documentos, notas, cartas, banco, aj] = await Promise.all([
+    db.all('propiedades'), db.all('inquilinos'), db.all('contratos'), db.all('pagos'), db.all('gastos'), db.all('documentos'), db.all('notas'), db.all('cartas'), db.all('banco'), getAjustes(),
   ]);
   props.sort((a, b) => (a.direccion || '').localeCompare(b.direccion || '', 'es', { numeric: true }));
-  return { props, inqs, contratos, pagos, gastos, documentos, notas, cartas, aj, inq: (id) => inqs.find(i => i.id === id) };
+  return { props, inqs, contratos, pagos, gastos, documentos, notas, cartas, banco, aj, inq: (id) => inqs.find(i => i.id === id) };
 }
 
 export async function cargarFincas() {
-  const [coms, vecinos, cobros, gastos, derramas, proveedores, juntas, cartas, aj] = await Promise.all([
-    db.all('f_comunidades'), db.all('f_vecinos'), db.all('f_cobros'), db.all('f_gastos'), db.all('f_derramas'), db.all('f_proveedores'), db.all('f_juntas'), db.all('f_cartas'), getAjustesFincas(),
+  const [coms, vecinos, cobros, gastos, derramas, proveedores, juntas, cartas, banco, aj] = await Promise.all([
+    db.all('f_comunidades'), db.all('f_vecinos'), db.all('f_cobros'), db.all('f_gastos'), db.all('f_derramas'), db.all('f_proveedores'), db.all('f_juntas'), db.all('f_cartas'), db.all('f_banco'), getAjustesFincas(),
   ]);
   coms.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { numeric: true }));
   vecinos.sort((a, b) => (a.orden ?? 999) - (b.orden ?? 999) || (a.piso || '').localeCompare(b.piso || '', 'es', { numeric: true }));
   proveedores.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
-  return { coms, vecinos, cobros, gastos, derramas, proveedores, juntas, cartas, aj };
+  return { coms, vecinos, cobros, gastos, derramas, proveedores, juntas, cartas, banco, aj };
 }
 
 const RUTAS = {
   inicio: [inicio, 'pat', 'inicio'], propiedades: [propiedades, 'pat', 'propiedades'], propiedad: [ficha, 'pat', 'propiedades'], ajustes: [ajustes, 'pat', 'ajustes'],
-  fincas: [comunidades, 'fin', 'fincas'], finca: [comunidad, 'fin', 'fincas'], fproveedores: [proveedoresV, 'fin', 'fproveedores'], plantillas: [plantPat, 'pat', 'plantillas'], fplantillas: [plantFin, 'fin', 'fplantillas'], fajustes: [fajustes, 'fin', 'fajustes'],
+  fincas: [comunidades, 'fin', 'fincas'], finca: [comunidad, 'fin', 'fincas'], fproveedores: [proveedoresV, 'fin', 'fproveedores'], plantillas: [plantPat, 'pat', 'plantillas'], informes: [informes, 'pat', 'informes'], conciliacion: [conciliacion, 'pat', 'conciliacion'], fplantillas: [plantFin, 'fin', 'fplantillas'], fajustes: [fajustes, 'fin', 'fajustes'],
 };
 
 const SVG = {
@@ -41,6 +43,8 @@ const SVG = {
   edificio: '<path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M16 9h3a1 1 0 0 1 1 1v11"/><path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1M3 21h18"/>',
   panel: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   pisos: '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 9h4a1 1 0 0 1 1 1v11"/><path d="M8 8h3M8 12h3M8 16h3M3 21h18"/>',
+  banco: '<path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/>',
+  grafica: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   texto: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 13h8M8 17h6"/>',
   prov: '<path d="M14 7h3l3 4v5h-2"/><path d="M3 6h11v10H3z"/><circle cx="7" cy="18" r="2"/><circle cx="16" cy="18" r="2"/>',
   ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
@@ -49,9 +53,8 @@ const ico = (k) => `<svg aria-hidden="true" viewBox="0 0 24 24">${SVG[k]}</svg>`
 
 async function pintarSidebar(mod, activo, aj) {
   const nav = mod === 'pat'
-    ? [['#/inicio', 'inicio', 'panel', 'Inicio'], ['#/propiedades', 'propiedades', 'pisos', 'Propiedades'], ['#/plantillas', 'plantillas', 'texto', 'Plantillas'], ['#/ajustes', 'ajustes', 'ajustes', 'Ajustes y copias']]
+    ? [['#/inicio', 'inicio', 'panel', 'Inicio'], ['#/propiedades', 'propiedades', 'pisos', 'Propiedades'], ['#/conciliacion', 'conciliacion', 'banco', 'Conciliación'], ['#/informes', 'informes', 'grafica', 'Informes'], ['#/plantillas', 'plantillas', 'texto', 'Plantillas'], ['#/ajustes', 'ajustes', 'ajustes', 'Ajustes y copias']]
     : [['#/fincas', 'fincas', 'edificio', 'Comunidades'], ['#/fproveedores', 'fproveedores', 'prov', 'Proveedores'], ['#/fplantillas', 'fplantillas', 'texto', 'Plantillas'], ['#/fajustes', 'fajustes', 'ajustes', 'Ajustes y copias']];
-  const soon = mod === 'pat' ? 'Próximamente: conciliación bancaria, informes' : 'Próximamente: actas, etiquetas, liquidaciones, conciliación';
   const u = await ultimaCopiaComun(), dias = u ? diasEntre(u.slice(0, 10), hoyISO()) : null;
   const tarde = dias === null || dias > (aj.recordatorioDias || 15);
   const ajRuta = mod === 'pat' ? '#/ajustes' : '#/fajustes';
@@ -63,7 +66,7 @@ async function pintarSidebar(mod, activo, aj) {
     <nav class="nav" aria-label="${mod === 'pat' ? 'Patrimonio' : 'Admon. Fincas'}">
       <div class="nav-title">${mod === 'pat' ? 'Patrimonio' : 'Admon. Fincas'}</div>
       ${nav.map(([h, k, i, l]) => `<a href="${h}" class="${k === activo ? 'on' : ''}" ${k === activo ? 'aria-current="page"' : ''}>${ico(i)}${l}</a>`).join('')}
-      <span class="nav-soon">${soon}</span>
+
     </nav>
     <div class="sync"><b><span class="dot ${tarde ? 'warn' : ''}"></span>Guardado en este dispositivo</b>
       <span>${u ? `Última copia completa: ${esc(fecha(u))}` : 'Aún no has hecho ninguna copia'}</span>

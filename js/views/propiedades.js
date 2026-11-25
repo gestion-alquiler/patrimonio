@@ -28,7 +28,7 @@ export async function render(_, d) {
     .map(([id, l]) => `<button type="button" class="chip ${filtro === id ? 'on' : ''}" data-f="${id}" aria-pressed="${filtro === id}">${l} <span style="opacity:.75">${n[id]}</span></button>`).join('');
   return `<div class="page">
   <div class="head"><div><h1>Propiedades</h1><div class="sub">${n.todas} en total · ${n.alq} alquiladas · ${n.libre} libres</div></div>
-    <div class="actions"><button class="btn primary" data-a="nueva">+ Nueva propiedad</button></div></div>
+    <div class="actions">${d.contratos.some(k => k.estado !== 'finalizado') ? '<button class="btn" data-a="etiquetas">Etiquetas para sobres</button>' : ''}<button class="btn primary" data-a="nueva">+ Nueva propiedad</button></div></div>
   ${d.props.length ? `<div class="head" style="align-items:center"><div class="chips" role="group" aria-label="Filtrar">${chips}</div>
     <label class="sr" for="busca">Buscar</label><input id="busca" class="search" type="search" placeholder="Dirección, zona o inquilino…" value="${esc(busca)}"></div>
   <div class="grid-props">${vis.map(i => `<a class="card prop" href="#/propiedad/${i.p.id}">
@@ -43,6 +43,14 @@ export async function render(_, d) {
 }
 
 export function bind(el, _, d, refresh) {
+  const be = el.querySelector('[data-a=etiquetas]');
+  if (be) be.onclick = async () => {
+    const { dialogoEtiquetas } = await import('../etiquetas.js'); const { getAjustes, setAjustes } = await import('../db.js');
+    const linea = (k, estado) => { const p = d.props.find(x => x.id === k.propiedadId), i = d.inq(k.inquilinoId) || {}; return { lineas: [i.nombre || '', p?.direccion || '', p?.zona || ''] }; };
+    const act = d.contratos.filter(k => k.estado !== 'finalizado'), ant = d.contratos.filter(k => k.estado === 'finalizado');
+    dialogoEtiquetas('Etiquetas · inquilinos', [['Inquilinos actuales', act.map(linea)], ['Inquilinos con importes pendientes', act.filter(k => deudaContrato(k, d.pagos).total > 0.005).map(linea)], ['Inquilinos anteriores (dirección del inmueble)', ant.map(linea)]],
+      { ultimoFormato: d.aj.etiquetaFormato || '3x8', alGuardarFormato: async (f) => { const aj = await getAjustes(); aj.etiquetaFormato = f; await setAjustes(aj); } });
+  };
   el.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; refresh(); });
   const s = el.querySelector('#busca');
   if (s) { s.oninput = () => { busca = s.value; clearTimeout(s._t); s._t = setTimeout(async () => { await refresh(); const n = document.getElementById('busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); }; }

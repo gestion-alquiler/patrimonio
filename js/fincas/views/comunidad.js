@@ -4,10 +4,13 @@ import { vecinosDe, estadoCuota, cuotaEn, deudaVecino, parteDerrama, cobradoDerr
 import { formComunidad, darDeBaja } from './comunidades.js';
 import { renderVecino, bindVecino } from './vecino.js';
 import { tabCartas, bindTabCartas, renderRedactar, bindRedactar } from '../cartasFin.js';
+import { renderActa, bindActa, paginaActa } from '../actas.js';
+import { tabLiquidacion, bindLiquidacion } from '../liquidacion.js';
+import { tabBanco, bindTabBanco } from '../bancoFin.js';
 import { formProveedor } from './proveedores.js';
 import { ordenPorDefecto, paginaConvocatoria, abrirImpresion, textoEmail, deudoresDe, fechaLarga } from '../docs.js';
 
-const TABS = [['vecinos', 'Vecinos'], ['cuotas', 'Cuotas'], ['balance', 'Balance'], ['gastos', 'Gastos'], ['presupuesto', 'Presupuesto'], ['derramas', 'Derramas'], ['juntas', 'Juntas'], ['cartas', 'Cartas'], ['datos', 'Datos de la comunidad']];
+const TABS = [['vecinos', 'Vecinos'], ['cuotas', 'Cuotas'], ['balance', 'Balance'], ['banco', 'Banco'], ['gastos', 'Gastos'], ['presupuesto', 'Presupuesto'], ['liquidacion', 'Liquidación'], ['derramas', 'Derramas'], ['juntas', 'Juntas'], ['cartas', 'Cartas'], ['datos', 'Datos de la comunidad']];
 const st = { anio: new Date().getFullYear(), movF: 'todos', movM: 0, der: null, junta: null };
 
 // Saldo del banco: el último que se anotó (a mano o, más adelante, por conciliación)
@@ -21,13 +24,14 @@ export async function render([id, tab = 'vecinos', sub, extra], d) {
   if (!c) return `<div class="page"><a class="back" href="#/fincas">← Comunidades</a><div class="card empty"><h2>No se encuentra la comunidad</h2></div></div>`;
   if (tab === 'vecino') return renderVecino(c, sub, d);
   if (tab === 'carta') return renderRedactar(c, sub, extra, d);
+  if (tab === 'acta') return renderActa(c, sub, d);
   const vs = vecinosDe(d, c.id);
   const deudas = Object.fromEntries(vs.map(v => [v.id, deudaVecino(c, v, d)]));
   const pend = Object.values(deudas).reduce((a, x) => a + x.total, 0);
   const morosos = Object.values(deudas).filter(x => x.total > 0.1).length;
   const bal = balanceComunidad(c, d, st.anio);
   const ctx = { c, vs, deudas, pend, morosos, bal, d };
-  const body = { vecinos, cuotas, balance, gastos, presupuesto, derramas, juntas, cartas: ({ c, d }) => tabCartas(c, d), datos }[tab] || vecinos;
+  const body = { vecinos, cuotas, balance, gastos, presupuesto, derramas, juntas, cartas: ({ c, d }) => tabCartas(c, d), liquidacion: ({ c, d }) => tabLiquidacion(c, d), banco: ({ c, d }) => tabBanco(c, d), datos }[tab] || vecinos;
   return `<div class="page">
   <a class="back" href="#/fincas">← Comunidades</a>
   <div class="head"><div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h1>${esc(c.nombre)}</h1><span class="badge ${c.archivada ? 'neutral' : morosos ? 'bad' : 'ok'}">${c.archivada ? 'Archivada' : morosos ? morosos + (morosos === 1 ? ' con pendiente' : ' con pendiente') : 'Todos al corriente'}</span></div>
@@ -50,7 +54,7 @@ const resDeuda = (x) => x.det.length <= 3 ? x.det.map(z => z.tipo === 'cuota' ? 
 function vecinos({ c, vs, deudas }) {
   const sc = sumaCoef(vs);
   return `<section class="card"><div class="cardhead"><div><h2>Propietarios por piso</h2><div class="small muted">Pulsa en un piso para ver o editar su ficha.</div></div>
-    <div class="actions"><a class="btn primary sm" href="#/finca/${c.id}/vecino/nuevo">+ Vecino</a></div></div>
+    <div class="actions">${vs.length ? '<button class="btn sm" data-a="etiquetas">Etiquetas para sobres</button>' : ''}<a class="btn primary sm" href="#/finca/${c.id}/vecino/nuevo">+ Vecino</a></div></div>
     ${vs.length && Math.abs(sc - 100) > 0.01 ? `<div style="padding:0 20px 10px"><div class="strip warn"><div class="small">Los coeficientes suman <b>${coefTxt(sc)} %</b>. Lo normal es 100 %. Revísalos si no es lo que pone en la escritura.</div></div></div>` : ''}
     <div class="tw"><table style="min-width:760px"><thead><tr><th>Piso</th><th>Propietario</th><th>Ocupante</th><th class="r">Coef. %</th><th class="r">Cuota</th><th>Pago</th><th>Situación</th></tr></thead><tbody>
     ${vs.map(v => { const dd = deudas[v.id]; return `<tr><td class="b nw"><a class="linkbtn" style="font-size:14px" href="#/finca/${c.id}/vecino/${v.id}">${esc(v.piso)}</a></td><td>${esc(v.propietario)}${v.telefono ? `<div class="small muted">${esc(v.telefono)}</div>` : ''}</td><td class="small">${esc(v.ocupante) || '—'}</td>
@@ -103,7 +107,7 @@ function balance({ c, bal, d }) {
   const sb = saldoBanco(c);
   const hist = (c.saldosBanco || []).slice().sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
   return `<section class="card"><div class="cardhead"><div><h2>Balance ${st.anio} · cobros y pagos por mes</h2><div class="small muted">Saldo según banco: <b class="num">${sb ? eur(sb.importe) + '</b> a ' + fecha(sb.fecha) : 'sin anotar</b>'} · <button class="linkbtn" data-a="saldo">Actualizar saldo</button></div></div>
-    <div class="actions"><button class="btn sm" data-a="cobro">+ Ingreso</button><button class="btn sm" data-a="gasto">+ Gasto</button><span class="btn sm" title="Próximamente" style="opacity:.5;cursor:default">Conciliar con el banco</span>${yearSel()}</div></div>
+    <div class="actions"><button class="btn sm" data-a="cobro">+ Ingreso</button><button class="btn sm" data-a="gasto">+ Gasto</button><a class="btn sm" href="#/finca/${c.id}/banco">Conciliar con el banco</a>${yearSel()}</div></div>
     <div class="tw"><table style="min-width:640px"><thead><tr><th>Mes</th><th class="r">Cobros</th><th class="r">Pagos</th><th class="r">Resultado</th><th>Cobros / pagos</th></tr></thead>
     <tbody>${filas}<tr class="tot"><td>Total ${st.anio}</td><td class="r num ing">${eur(bal.ing)}</td><td class="r num gas">${eur(bal.gas)}</td><td class="r num">${eur(bal.ing - bal.gas)}</td><td></td></tr></tbody></table></div></section>
   <section class="card"><div class="cardhead"><div><h2>Libro de movimientos</h2><div class="small muted">Del más reciente al más antiguo.</div></div>
@@ -192,6 +196,8 @@ function juntas({ c, vs, d }) {
       <ol style="margin:0;padding-left:20px">${(sel.puntos || []).map(p => `<li>${esc(p.es || p.ca)}${p.ca && p.es ? `<div class="small muted">${esc(p.ca)}</div>` : ''}</li>`).join('')}</ol>
       <div class="small muted">Fecha de la convocatoria: ${fecha(sel.fechaEmision)} · ${deud.length ? deud.length + ' propietarios sin derecho a voto por tener importes pendientes' : 'todos al corriente'}</div>
       <div class="actions"><button class="btn primary" data-j="imprimirTodas">Convocatorias para todos (PDF)</button><button class="btn" data-j="tablon">Anuncio para el tablón</button></div>
+      <div class="strip ${sel.acta ? 'ok' : 'info'}" style="align-items:center"><div style="flex:1"><div class="l">Acta</div>${sel.acta ? `Redactada · ${Object.values(sel.acta.asistencia || {}).filter(a => a.estado !== 'ausente').length} asistentes` : 'Aún no se ha redactado'}</div>
+        <a class="btn sm ${sel.acta ? '' : 'primary'}" href="#/finca/${c.id}/acta/${sel.id}">${sel.acta ? 'Editar acta' : 'Redactar acta'}</a>${sel.acta ? '<button class="btn sm" data-j="actaPdf">PDF del acta</button>' : ''}</div>
       <div class="small muted">Se abre una ventana con una página por vecino, en su idioma, con la delegación de voto. Pulsa «Imprimir o guardar como PDF».</div></section>
     <section class="card grow1"><div class="cardhead"><div><h2>Envío a los vecinos</h2><div class="small muted">${nEnv} de ${vs.length} marcados como enviados</div></div><button class="btn sm" data-j="marcarTodos">Marcar todos enviados</button></div>
       <div class="tw"><table><thead><tr><th>Piso</th><th>Propietario</th><th>Idioma</th><th>Enviada</th><th></th></tr></thead><tbody>
@@ -201,10 +207,10 @@ function juntas({ c, vs, d }) {
       </tbody></table></div><div class="cardfoot">«Email» abre tu correo con el texto de la convocatoria ya escrito. Para adjuntar el PDF, guárdalo antes con el botón «PDF».</div></section></div>
     <details class="card pad small"><summary style="cursor:pointer;color:var(--muted)">Opciones avanzadas</summary><div class="actions" style="margin-top:10px"><button class="btn sm danger" data-j="borrar">Borrar esta junta</button></div></details>`;
   }
-  return `<div class="head" style="align-items:center"><div><h2>Juntas</h2><div class="small muted">Convocatorias ordinarias y extraordinarias, personalizadas por vecino. Las actas vendrán aquí mismo.</div></div>
+  return `<div class="head" style="align-items:center"><div><h2>Juntas</h2><div class="small muted">Convocatorias ordinarias y extraordinarias, personalizadas por vecino. Desde cada junta se redacta su acta.</div></div>
     <div class="actions"><button class="btn" data-j="nueva" data-tipo="extraordinaria">+ Junta extraordinaria</button><button class="btn primary" data-j="nueva" data-tipo="ordinaria">+ Junta ordinaria</button></div></div>
     <div class="grid-props" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${js.map(x => { const pasada = (x.fecha || '') < hoy; return `<button type="button" class="card" data-junta="${x.id}" aria-pressed="${x.id === st.junta}" style="text-align:left;padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;font:inherit;color:inherit;border-color:${x.id === st.junta ? 'var(--accent)' : 'var(--line)'};background:${x.id === st.junta ? 'var(--accent-soft)' : '#fff'}">
-      <span style="display:flex;justify-content:space-between;gap:8px"><b>Junta ${TIPOJ[x.tipo].toLowerCase()}</b><span class="badge ${pasada ? 'neutral' : 'info'}">${pasada ? 'Celebrada' : 'Convocada'}</span></span><span class="small">${x.fecha ? fechaLarga(x.fecha, 'es', true) : '—'} · ${esc(x.hora || '')} h</span><span class="small muted">${(x.puntos || []).length} puntos · ${esc(x.lugar || '')}</span></button>`; }).join('') || '<div class="card empty" style="grid-column:1/-1">Aún no hay juntas. Crea la primera con los botones de arriba.</div>'}</div>
+      <span style="display:flex;justify-content:space-between;gap:8px"><b>Junta ${TIPOJ[x.tipo].toLowerCase()}</b><span class="badge ${x.acta ? 'ok' : pasada ? 'neutral' : 'info'}">${x.acta ? 'Con acta' : pasada ? 'Celebrada' : 'Convocada'}</span></span><span class="small">${x.fecha ? fechaLarga(x.fecha, 'es', true) : '—'} · ${esc(x.hora || '')} h</span><span class="small muted">${(x.puntos || []).length} puntos · ${esc(x.lugar || '')}</span></button>`; }).join('') || '<div class="card empty" style="grid-column:1/-1">Aún no hay juntas. Crea la primera con los botones de arriba.</div>'}</div>
     ${detalle}`;
 }
 
@@ -465,13 +471,25 @@ export function bind(el, [id, tab, sub, extra], d, refresh) {
   const c = d.coms.find(x => x.id === id); if (!c) return;
   if (tab === 'vecino') return bindVecino(el, c, sub, d, refresh);
   if (tab === 'carta') return bindRedactar(el, c, sub, extra, d);
+  if (tab === 'acta') return bindActa(el, c, sub, d);
   if (tab === 'cartas') bindTabCartas(el, c, d, refresh);
+  if (tab === 'liquidacion') bindLiquidacion(el, c, d, refresh);
+  if (tab === 'banco') bindTabBanco(el, c, d, refresh);
   const vs = vecinosDe(d, c.id);
   const on = (s, fn) => el.querySelectorAll(s).forEach(b => b.addEventListener('click', () => fn(b)));
   const anio = el.querySelector('#anio'); if (anio) anio.onchange = () => { st.anio = Number(anio.value); refresh(); };
   on('[data-a=editCom]', () => formComunidad(c, refresh));
   on('[data-a=baja]', () => darDeBaja(c, refresh));
   on('[data-a=saldo]', () => formSaldo(c, refresh));
+  on('[data-a=etiquetas]', async () => {
+    const { dialogoEtiquetas } = await import('../../etiquetas.js'); const { getAjustesFincas, setAjustesFincas } = await import('../../db.js');
+    const loc = c.localidad || '';
+    const prop = (v) => ({ lineas: v.direccionNotif ? [v.propietario, v.direccionNotif] : [v.propietario, [c.direccion, v.piso].filter(Boolean).join(', '), loc] });
+    const ocup = (v) => ({ lineas: [v.ocupante, [c.direccion, v.piso].filter(Boolean).join(', '), loc] });
+    dialogoEtiquetas('Etiquetas · ' + c.nombre, [['Todos los propietarios', vs.map(prop)], ['Propietarios sin email (correo postal)', vs.filter(v => !v.email).map(prop)],
+      ['Propietarios con importes pendientes', vs.filter(v => deudaVecino(c, v, d).total > 0.1).map(prop)], ['Ocupantes (inquilinos de los pisos)', vs.filter(v => v.ocupante).map(ocup)]],
+      { ultimoFormato: d.aj.etiquetaFormato || '3x8', alGuardarFormato: async (f) => { const aj = await getAjustesFincas(); aj.etiquetaFormato = f; await setAjustesFincas(aj); } });
+  });
   on('[data-delsaldo]', async (b) => { const h = (c.saldosBanco || []).slice().sort((a, z) => (a.fecha < z.fecha ? 1 : -1)); const quitar = h[Number(b.dataset.delsaldo)];
     if (await confirmar('Borrar saldo', `¿Borrar el saldo anotado del ${fecha(quitar.fecha)}?`)) { await db.put('f_comunidades', { ...c, saldosBanco: (c.saldosBanco || []).filter(x => x !== quitar) }); toast('Saldo borrado'); refresh(); } });
   on('[data-a=editPres]', () => formPresupuesto(c, st.anio, refresh));
@@ -483,6 +501,7 @@ export function bind(el, [id, tab, sub, extra], d, refresh) {
   if (jsel) {
     const guardarEnv = async (envios) => { await db.put('f_juntas', { ...jsel, envios }); refresh(); };
     on('[data-j=editar]', () => formJunta(c, jsel, refresh));
+    on('[data-j=actaPdf]', () => abrir(`Acta ${c.nombre} ${fecha(jsel.fecha)}`, [paginaActa(jsel, c, d)]));
     on('[data-j=imprimirTodas]', () => abrir(`Convocatorias ${c.nombre} ${fecha(jsel.fecha)}`, vs.map(v => paginaConvocatoria(jsel, c, v, d, ad))));
     on('[data-j=tablon]', () => abrir(`Anuncio ${c.nombre}`, ['ca', 'es'].map(l => paginaConvocatoria({ ...jsel, idiomaTablon: l }, c, null, d, ad))));
     on('[data-jver]', (b) => { const v = vs.find(x => x.id === b.dataset.jver); abrir(`Convocatoria ${v.piso} · ${c.nombre}`, [paginaConvocatoria(jsel, c, v, d, ad)]); });

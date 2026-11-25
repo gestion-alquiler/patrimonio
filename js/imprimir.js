@@ -7,7 +7,7 @@ const CSS = `
 body { font: 10pt/1.4 "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; margin: 0; background: #e9ecf1; }
 .hoja { background: #fff; width: 210mm; min-height: 297mm; margin: 12px auto; padding: 16mm 18mm; page-break-after: always; break-after: page; position: relative; }
 .hoja:last-child { page-break-after: auto; break-after: auto; }
-.cab { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1.5px solid #2C5585; padding-bottom: 8px; font-size: 9pt; color: #2C5585; }
+.cab { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1.5px solid var(--c, #2C5585); padding-bottom: 8px; font-size: 9pt; color: var(--c, #2C5585); }
 .cab .com b { font-size: 12pt; color: #14233A; } .cab .dat { text-align: right; color: #555; }
 .dest { margin: 6mm 0 2mm auto; width: 85mm; min-height: 17mm; font-size: 10pt; }
 .lugar { text-align: right; margin: 3mm 0 2mm; }
@@ -23,6 +23,18 @@ h3 { font-size: 10.5pt; text-transform: uppercase; margin: 2mm 0; }
 .carta .cuerpo p { margin: 0 0 3mm; } .carta .cuerpo ul, .carta .cuerpo ol { margin: 0 0 3mm; padding-left: 7mm; } .asunto { margin: 4mm 0; }
 .carta .cab { border-color: var(--c); color: var(--c); }
 [contenteditable]:focus { outline: 2px dashed #9db4d6; outline-offset: 4px; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 1mm 0 3mm; } .tabla th, .tabla td { border-bottom: 1px solid #ddd; padding: 1.2mm 2mm; text-align: left; } .tabla th { font-size: 8.5pt; color: #555; } .tabla .r { text-align: right; } .tabla .tot td { font-weight: 700; border-top: 1.5px solid #999; }
+.acta .punto { margin: 3mm 0; break-inside: avoid; } .acta .punto h3 { font-size: 10pt; text-transform: none; margin: 0 0 1mm; } .acta .punto p { margin: 1mm 0; }
+.recibos { display: flex; flex-direction: column; }
+.recibo { height: 128mm; display: flex; flex-direction: column; gap: 3mm; font-size: 10pt; overflow: hidden; }
+.recibo .rcab { display: flex; justify-content: space-between; gap: 10mm; border-bottom: 1.5px solid var(--c, #2C5585); padding-bottom: 3mm; font-size: 9pt; }
+.recibo .rnum { text-align: right; text-transform: uppercase; letter-spacing: .03em; color: var(--c, #2C5585); } .recibo .rnum b { font-size: 12pt; color: #111; }
+.recibo .rpie { display: flex; justify-content: space-between; gap: 10mm; margin-top: auto; font-size: 9pt; } .recibo .rpie > div:last-child { text-align: center; min-width: 60mm; }
+.corte { color: #888; font-size: 8pt; overflow: hidden; white-space: nowrap; margin: 4mm 0; }
+.liqdoc .tabla td, .liqdoc .tabla th { white-space: nowrap; padding: 1mm 1.2mm; }
+.liqdoc h2 { margin: 4mm 0 1.5mm; }
+.liqdoc .aviso { margin: 2mm 0; padding: 1.5mm 3mm; }
+.tabla .sub td { color: #555; font-size: 8.5pt; padding-top: .5mm; padding-bottom: .5mm; }
 .barra button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 0; background: #fff; color: #14233A; font-weight: 600; cursor: pointer; }
 @media print { body { background: #fff; } .hoja { margin: 0; width: auto; min-height: 0; padding: 0; } .barra { display: none; } }
 `;

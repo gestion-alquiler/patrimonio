@@ -202,7 +202,7 @@ export async function cargarPruebaFincas() {
   for (const [ic, cd] of coms.entries()) {
     const div = cd.periodicidad === 'trimestral' ? 4 : 12;
     const com = await put('f_comunidades', { nombre: cd.nombre, direccion: cd.direccion, localidad: cd.localidad, cif: cd.cif, iban: cd.iban, banco: '', presidente: cd.presidente, presidentePiso: presidencia[ic][0], presidenteTel: presidencia[ic][1], presidenteEmail: presidencia[ic][2], presidenteHasta: iso(Y + 1, 3, 31), secretario: 'El administrador', caracteristicas: caract[ic],
-      presupuesto: cd.presupuesto, periodicidad: cd.periodicidad, diaCobro: 10, fondoReserva: cd.fondo, saldosBanco: [{ fecha: `${Y - 1}-12-31`, importe: cd.saldo, origen: 'Manual', nota: 'Extracto de fin de año' }, { fecha: iso(Y, M, Math.max(1, D - 4)), importe: r2(cd.saldo + 600 + r() * 900), origen: 'Manual' }], cobrosDesde: `${Y - 1}-01`, idioma: np % 2 ? 'es' : 'ca', normativa: 'Codi civil de Catalunya', notas: 'Comunidad de prueba con datos inventados.' });
+      presupuesto: cd.presupuesto, periodicidad: cd.periodicidad, diaCobro: 10, fondoReserva: cd.fondo, saldosBanco: [{ fecha: `${Y - 2}-12-31`, importe: r2(cd.saldo * 0.85), origen: 'Manual', nota: 'Extracto de fin de año' }, { fecha: `${Y - 1}-12-31`, importe: cd.saldo, origen: 'Manual', nota: 'Extracto de fin de año' }, { fecha: iso(Y, M, Math.max(1, D - 4)), importe: r2(cd.saldo + 600 + r() * 900), origen: 'Manual' }], cobrosDesde: `${Y - 1}-01`, idioma: np % 2 ? 'es' : 'ca', normativa: 'Codi civil de Catalunya', notas: 'Comunidad de prueba con datos inventados.' });
     const partidasDe = (k) => { const n = cd.pisos.length; const l = [['Electricidad', 'coef', 12 * (cd.ascensor ? 105 : 45)], ['Limpieza', 'iguales', 12 * (n > 10 ? 260 : 150)], ...(cd.ascensor ? [['Ascensor', 'coef', 4 * 345.8]] : []), ['Agua', 'coef', 4 * 35], ['Seguro', 'coef', n * 95], ['Honorarios de administración', 'iguales', 4 * n * 18], ['Mantenimiento y reparaciones', 'coef', 500]];
       const suma = l.reduce((a, x) => a + x[2], 0); if (cd.presupuesto > suma) l.push(['Fondo de reserva', 'coef', cd.presupuesto - suma]);
       return l.map(([partida, grupo, imp]) => ({ partida, grupo, importe: r2(imp * k) })); };
@@ -262,7 +262,11 @@ export async function cargarPruebaFincas() {
     const fj = new Date(Y, M - 1, D + 16); const fjIso = iso(fj.getFullYear(), fj.getMonth() + 1, fj.getDate());
     await put('f_juntas', { comunidadId: com.id, tipo: 'ordinaria', fecha: fjIso, hora: '19:00', hora2: '', lugar: ic === 1 ? 'el local social de la comunidad (planta baja)' : 'el vestíbulo de la finca', fechaEmision: hoy, puntos: ordenPorDefecto('ordinaria', Y + 1), nota: { es: '', ca: '' } });
     if (cd.derrama) await put('f_juntas', { comunidadId: com.id, tipo: 'extraordinaria', fecha: iso(Y, Math.max(1, M - 6), 20), hora: '19:30', hora2: '', lugar: 'el vestíbulo de la finca', fechaEmision: iso(Y, Math.max(1, M - 6), 5),
-      puntos: [{ es: 'Aprobación, si procede, del presupuesto de rehabilitación de la fachada y de la derrama correspondiente.', ca: "Aprovació, si escau, del pressupost de rehabilitació de la façana i de la derrama corresponent." }, { es: 'Forma de pago de la derrama.', ca: 'Forma de pagament de la derrama.' }], envios: {} });
+      puntos: [{ es: 'Aprobación, si procede, del presupuesto de rehabilitación de la fachada y de la derrama correspondiente.', ca: "Aprovació, si escau, del pressupost de rehabilitació de la façana i de la derrama corresponent." }, { es: 'Forma de pago de la derrama.', ca: 'Forma de pagament de la derrama.' }], envios: Object.fromEntries(vs.map(v => [v.id, { fecha: iso(Y, Math.max(1, M - 6), 6), via: 'Entregada' }])),
+      acta: { idioma: 'ca', horaInicio: '19:30', horaFin: '21:05', preside: cd.presidente, secretario: 'El administrador', sinVoto: [],
+        asistencia: Object.fromEntries(vs.map((v, i) => [v.id, { estado: i === 3 ? 'representado' : i === 6 || i === 7 ? 'ausente' : 'presente', representante: i === 3 ? 'Rosa Ferrer Coll' : '' }])),
+        acuerdos: [{ texto: "<p>S'han presentat tres pressupostos. La junta escull el de <b>Construccions Martí</b> per un import total de 18.000 € (bastida, reparació, pintura i direcció d'obra), que es repartirà per coeficient.</p>", resultado: 'mayoria', votos: Object.fromEntries(vs.map((v, i) => [v.id, i === 4 ? 'c' : i === 5 ? 'a' : 'f'])) },
+          { texto: '<p>La derrama es pagarà en <b>tres terminis</b> bimestrals, el primer al mes següent de la junta.</p>', resultado: 'unanimidad', votos: null }], ruegos: '<p>El veí del 2n 2a demana que es revisi la il·luminació de l\'escala. Es tindrà en compte.</p>' } });
     // Derrama de obras en tres plazos
     if (cd.derrama) {
       const m0 = Math.max(1, M - 5);
@@ -297,9 +301,55 @@ export async function hayPrueba() {
 
 export async function borrarPrueba() {
   let n = 0;
+  // Movimientos del extracto de prueba y lo que se creó al conciliarlos
+  const movPrueba = new Set();
+  for (const st of ['banco', 'f_banco']) for (const m of await db.all(st)) if (m.archivo === 'extracto_prueba.csv') { movPrueba.add(m.id); await db.del(st, m.id); n++; }
+  if (movPrueba.size) for (const st of ['pagos', 'gastos', 'f_cobros', 'f_gastos']) for (const o of await db.all(st)) if (o.banco && movPrueba.has(o.banco) && !o.prueba) { await db.del(st, o.id); n++; }
   for (const s of STORES.concat(STORES_FIN)) {
     if (s === 'ajustes') continue;
     for (const it of await db.all(s)) if (it.prueba) { await db.del(s, it.id); n++; }
   }
   return n;
+}
+
+/* ---------- Extracto bancario de prueba (CSV como el de un banco) ---------- */
+// Se genera a partir de los datos de prueba actuales, para probar la conciliación de principio a fin.
+export async function extractoPrueba(mod, comunidadId) {
+  const { estadoMes } = await import('./calc.js');
+  const F = await import('./fincas/calc.js');
+  const hoy = hoyISO(); const movs = [];
+  const dia = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  if (mod === 'pat') {
+    const [contratos, inqs, pagos, gastos] = await Promise.all([db.all('contratos'), db.all('inquilinos'), db.all('pagos'), db.all('gastos')]);
+    let n = 2;
+    for (const k of contratos.filter(x => x.estado !== 'finalizado' && x.prueba)) {
+      const i = inqs.find(x => x.id === k.inquilinoId) || {};
+      for (let y = Number(hoy.slice(0, 4)) - 1; y <= Number(hoy.slice(0, 4)); y++) for (let m = 1; m <= 12; m++) {
+        const e = estadoMes(k, pagos, y, m, 'renta');
+        if (e.estado === 'debe' && !movs.some(x => x.k === k.id)) movs.push({ k: k.id, fecha: dia(n++), concepto: `TRANSFERENCIA DE ${String(i.nombre || '').toUpperCase()} CONCEPTO ALQUILER`, importe: e.esp - e.pag });
+      }
+    }
+    gastos.filter(g => g.prueba && g.estado === 'pagado' && g.fecha <= hoy).sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 3).forEach(g => movs.push({ fecha: g.fecha, concepto: `RECIBO ${String(g.proveedor || g.concepto).toUpperCase()}`, importe: -g.importe }));
+    movs.push({ fecha: dia(1), concepto: 'COMISION MANTENIMIENTO CUENTA', importe: -6 });
+  } else {
+    const [com, vecinos, cobros, gastos, derramas, provs] = await Promise.all([db.get('f_comunidades', comunidadId), db.all('f_vecinos'), db.all('f_cobros'), db.all('f_gastos'), db.all('f_derramas'), db.all('f_proveedores')]);
+    const vs = vecinos.filter(v => v.comunidadId === comunidadId); const d = { vecinos, cobros };
+    let n = 2;
+    for (const v of vs) {
+      for (let y = Number(hoy.slice(0, 4)) - 1; y <= Number(hoy.slice(0, 4)); y++) for (let m = 1; m <= 12; m++) {
+        const e = F.estadoCuota(com, v, cobros, y, m);
+        if (e.estado === 'debe' && !movs.some(x => x.v === v.id)) movs.push({ v: v.id, fecha: dia(n++), concepto: `TRANSF ${String(v.propietario).toUpperCase()} QUOTA COMUNITAT`, importe: e.esp - e.pag });
+      }
+      derramas.filter(x => x.comunidadId === comunidadId).forEach(der => (der.plazos || []).forEach((pl, i) => { if (pl.mes > hoy.slice(0, 7)) return; const falta = F.parteDerrama(der, v, vs) / der.plazos.length - F.cobradoDerrama(cobros, v.id, der.id, i).imp;
+        if (falta > 0.01 && !movs.some(x => x.dv === v.id)) movs.push({ dv: v.id, fecha: dia(n++), concepto: `TRANSF ${String(v.propietario).toUpperCase()} DERRAMA FACANA`, importe: Math.round(falta * 100) / 100 }); }));
+    }
+    gastos.filter(g => g.comunidadId === comunidadId && g.estado === 'pagado' && g.fecha <= hoy && g.grupo !== 'derrama').sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 3).forEach(g => movs.push({ fecha: g.fecha, concepto: `RECIBO ${String(g.proveedor || g.concepto).toUpperCase()}`, importe: -g.importe }));
+    const end = provs.find(p => p.nombre === 'Endesa'); if (end) movs.push({ fecha: dia(1), concepto: 'ADEUDO ENDESA ENERGIA SAU FACTURA LUZ', importe: -97.35 });
+    movs.push({ fecha: dia(1), concepto: 'COMISION MANTENIMIENTO', importe: -4.5 });
+  }
+  movs.sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+  let saldo = 8000; const fmt = (n) => n.toFixed(2).replace('.', ',');
+  const lineas = ['Fecha operación;Fecha valor;Concepto;Importe;Saldo'];
+  movs.forEach(m => { saldo += m.importe; const f = m.fecha.split('-').reverse().join('/'); lineas.push(`${f};${f};${m.concepto};${fmt(m.importe)};${fmt(saldo)}`); });
+  return '﻿' + lineas.join('\r\n');
 }

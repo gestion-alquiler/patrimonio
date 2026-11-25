@@ -1,7 +1,8 @@
 // Ajustes → Plantillas: textos de las convocatorias (Admon. Fincas) y modelos de carta (las dos partes).
 import { getAjustes, setAjustes, getAjustesFincas, setAjustesFincas } from '../db.js';
 import { esc, modal, confirmar, toast, field, fd } from '../ui.js';
-import { CONV, CARTAS_BASE, MARCAS, modelosCarta, htmlATexto } from '../plantillas.js';
+import { CONV, ACTA, CARTAS_BASE, MARCAS, modelosCarta, htmlATexto } from '../plantillas.js';
+const GRUPOS = [['conv', 'Textos de las convocatorias', 'Cada párrafo de la convocatoria de junta. El orden del día se escribe en cada junta.', CONV, 'convocatoria'], ['acta', 'Textos del acta y de la notificación a los ausentes', 'Encabezamiento, cierre y la carta que se prepara para los ausentes.', ACTA, 'acta']];
 import { editorHtml, enlazarEditores, leerEditor } from '../editor.js';
 
 const getAj = (mod) => (mod === 'pat' ? getAjustes() : getAjustesFincas());
@@ -23,10 +24,10 @@ export function vista(mod) {
           return `<tr><td class="b">${esc(m.nombre)}<div>${base ? `<span class="badge ${mod2 ? 'warn' : 'neutral'}">${mod2 ? 'De serie · modificado' : 'De serie'}</span>` : '<span class="badge info">Propio</span>'}</div></td><td class="small muted">${esc(corto(m.cuerpo?.es || m.cuerpo?.ca))}</td>
           <td class="nw"><button class="btn sm" data-pe="${esc(m.id)}">Editar</button> <button class="btn sm" data-pd="${esc(m.id)}">Duplicar</button> <button class="btn sm danger" data-pb="${esc(m.id)}">Quitar</button></td></tr>`; }).join('') || '<tr><td colspan="3" class="muted">No hay modelos.</td></tr>'}
         </tbody></table></div></section>
-      ${mod === 'fin' ? `<section class="card"><div class="cardhead"><div><h2>Textos de las convocatorias</h2><div class="small muted">Cada párrafo de la convocatoria de junta, en castellano y català. El orden del día se escribe en cada junta.</div></div></div>
+      ${mod === 'fin' ? GRUPOS.map(([g, tit, sub, lista]) => { const own = aj.plantillas?.[g] || {}; return `<section class="card"><div class="cardhead"><div><h2>${tit}</h2><div class="small muted">${sub}</div></div></div>
         <div class="tw"><table><thead><tr><th>Párrafo</th><th>Texto actual (castellano)</th><th></th></tr></thead><tbody>
-        ${CONV.map(x => { const cambiado = conv[x.k] && (conv[x.k].es || conv[x.k].ca); return `<tr><td class="b">${esc(x.nombre)}${cambiado ? '<div><span class="badge warn">Modificado</span></div>' : ''}</td><td class="small muted">${esc(corto((conv[x.k]?.es) || x.es, 160))}</td><td><button class="btn sm" data-ce="${x.k}">Editar</button></td></tr>`; }).join('')}
-        </tbody></table></div></section>` : ''}
+        ${lista.map(x => { const cambiado = own[x.k] && (own[x.k].es || own[x.k].ca); return `<tr><td class="b">${esc(x.nombre)}${cambiado ? '<div><span class="badge warn">Modificado</span></div>' : ''}</td><td class="small muted">${esc(corto(own[x.k]?.es || x.es, 160))}</td><td><button class="btn sm" data-ce="${g}:${x.k}">Editar</button></td></tr>`; }).join('')}
+        </tbody></table></div></section>`; }).join('') : ''}
       </div>`;
     },
     bind(el, _, d, refresh) {
@@ -58,15 +59,16 @@ export function vista(mod) {
         const aj = await getAj(mod); aj.cartasPlantillas = (aj.cartasPlantillas || []).filter(o => o.id !== m.id); if (base) aj.cartasBorradas = [...new Set([...(aj.cartasBorradas || []), m.id])]; await setAj(mod, aj); toast('Modelo quitado'); refresh(); });
       on('[data-p=recuperar]', async () => { const aj = await getAj(mod); aj.cartasBorradas = []; await setAj(mod, aj); toast('Modelos de serie recuperados'); refresh(); });
       on('[data-ce]', (b) => {
-        const x = CONV.find(q => q.k === b.dataset.ce), own = d.aj.plantillas?.conv?.[x.k] || {};
+        const [g, k] = b.dataset.ce.split(':'); const [, tit, , lista, marcas] = GRUPOS.find(x => x[0] === g);
+        const x = lista.find(q => q.k === k), own = d.aj.plantillas?.[g]?.[k] || {};
         modal({ title: x.nombre, submit: 'Guardar texto', wide: true, extra: '<button type="button" class="btn" data-restaurar>Restaurar el texto original</button>',
-          body: `${editorHtml('es', own.es || x.es, { marcas: MARCAS.convocatoria, alto: 110, etiqueta: 'Castellano' })}${editorHtml('ca', own.ca || x.ca, { marcas: MARCAS.convocatoria, alto: 110, etiqueta: 'Català' })}
+          body: `${editorHtml('es', own.es || x.es, { marcas: MARCAS[marcas], alto: 110, etiqueta: 'Castellano' })}${editorHtml('ca', own.ca || x.ca, { marcas: MARCAS[marcas], alto: 110, etiqueta: 'Català' })}
             <div class="small muted">Puedes usar negrita y los datos de la lista «Insertar dato». Si dejas un idioma vacío, se usa el texto original.</div>`,
           onSubmit: async () => { const es = leerEditor(dlg(), 'es'), ca = leerEditor(dlg(), 'ca');
-            const aj = await getAjustesFincas(); aj.plantillas = aj.plantillas || {}; aj.plantillas.conv = { ...(aj.plantillas.conv || {}), [x.k]: { es: es === x.es ? '' : es, ca: ca === x.ca ? '' : ca } };
+            const aj = await getAjustesFincas(); aj.plantillas = aj.plantillas || {}; aj.plantillas[g] = { ...(aj.plantillas[g] || {}), [k]: { es: es === x.es ? '' : es, ca: ca === x.ca ? '' : ca } };
             await setAjustesFincas(aj); toast('Texto guardado'); refresh(); } });
         enlazarEditores(dlg());
-        dlg().querySelector('[data-restaurar]').onclick = async () => { const aj = await getAjustesFincas(); if (aj.plantillas?.conv) delete aj.plantillas.conv[x.k]; await setAjustesFincas(aj); document.getElementById('modal-root').innerHTML = ''; toast('Texto original restaurado'); refresh(); };
+        dlg().querySelector('[data-restaurar]').onclick = async () => { const aj = await getAjustesFincas(); if (aj.plantillas?.[g]) delete aj.plantillas[g][k]; await setAjustesFincas(aj); document.getElementById('modal-root').innerHTML = ''; toast('Texto original restaurado'); refresh(); };
       });
     },
   };

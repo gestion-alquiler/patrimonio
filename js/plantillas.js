@@ -78,6 +78,33 @@ export const CONV = [
     ca: 'En/Na <b>{propietario}</b>, propietari/ària del pis/local <b>{piso}</b> de la Comunitat de Propietaris {comunidad}, delega la seva representació i vot en/na ________________________________ amb DNI ______________ per a la Junta General {tipo_junta} del {fecha_junta}.' },
 ];
 
+/* ---------- Textos del acta ---------- */
+export const ACTA = [
+  { k: 'intro', nombre: 'Encabezamiento del acta',
+    es: 'En {lugar}, siendo las {hora_inicio} horas del {fecha_junta}, se reúne la <b>Junta General {tipo_junta}</b> de la Comunidad de Propietarios {comunidad}, debidamente convocada, con la asistencia de los propietarios que se relacionan a continuación, presentes o representados, que son {num_asistentes} de {total_propietarios} y suman el {coef_asistentes} de las cuotas de participación. Preside la reunión {preside} y actúa como secretario {secretario}.',
+    ca: "A {lugar}, essent les {hora_inicio} hores del {fecha_junta}, es reuneix la <b>Junta General {tipo_junta}</b> de la Comunitat de Propietaris {comunidad}, degudament convocada, amb l'assistència dels propietaris que es relacionen a continuació, presents o representats, que són {num_asistentes} de {total_propietarios} i sumen el {coef_asistentes} de les quotes de participació. Presideix la reunió {preside} i actua com a secretari {secretario}." },
+  { k: 'sin_voto', nombre: 'Propietarios sin derecho a voto',
+    es: 'Asisten con voz pero sin derecho a voto, por no estar al corriente de pago: {lista_sin_voto}.',
+    ca: 'Hi assisteixen amb veu però sense dret de vot, per no estar al corrent de pagament: {lista_sin_voto}.' },
+  { k: 'desarrollo', nombre: 'Frase antes de los acuerdos', es: 'Se trata el orden del día de la convocatoria y se adoptan los siguientes acuerdos:', ca: "Es tracta l'ordre del dia de la convocatòria i s'adopten els acords següents:" },
+  { k: 'cierre', nombre: 'Cierre del acta',
+    es: 'Y no habiendo más asuntos que tratar, se levanta la sesión a las {hora_fin} horas, de la que se extiende la presente acta, que firman el Presidente y el Secretario.',
+    ca: "I no havent-hi més assumptes a tractar, s'aixeca la sessió a les {hora_fin} hores, de la qual s'estén aquesta acta, que signen el President i el Secretari." },
+  { k: 'notif_asunto', nombre: 'Notificación a los ausentes · asunto', es: 'Notificación de acuerdos · Junta del {fecha_junta}', ca: 'Notificació d\'acords · Junta del {fecha_junta}' },
+  { k: 'notif_cuerpo', nombre: 'Notificación a los ausentes · texto',
+    es: '<p>Estimado/a {propietario}:</p><p>Le notificamos los acuerdos adoptados en la Junta General {tipo_junta} de la Comunidad de Propietarios {comunidad}, celebrada el {fecha_junta}, a la que no asistió:</p>{acuerdos_html}<p>{texto_oposicion}</p><p>El acta completa está a su disposición en la administración.</p><p>Atentamente,</p>',
+    ca: "<p>Benvolgut/da {propietario}:</p><p>Us notifiquem els acords adoptats a la Junta General {tipo_junta} de la Comunitat de Propietaris {comunidad}, celebrada el {fecha_junta}, a la qual no vau assistir:</p>{acuerdos_html}<p>{texto_oposicion}</p><p>L'acta completa és a la vostra disposició a l'administració.</p><p>Atentament,</p>" },
+];
+MARCAS.acta = [['comunidad', 'Comunidad'], ['tipo_junta', 'Ordinaria / Extraordinaria'], ['fecha_junta', 'Fecha de la junta'], ['lugar', 'Lugar'], ['hora_inicio', 'Hora de inicio'], ['hora_fin', 'Hora de fin'],
+  ['preside', 'Quién preside'], ['secretario', 'Secretario'], ['num_asistentes', 'Nº de asistentes'], ['total_propietarios', 'Total de propietarios'], ['coef_asistentes', '% de coeficientes asistentes'],
+  ['lista_sin_voto', 'Propietarios sin voto'], ['propietario', 'Propietario (notificación)'], ['acuerdos_html', 'Lista de acuerdos (notificación)'], ['texto_oposicion', 'Plazo de oposición (notificación)']];
+export function textoActa(aj, k, l) {
+  const own = aj?.plantillas?.acta?.[k]?.[l];
+  if (own != null && own !== '') return own;
+  const def = ACTA.find(x => x.k === k);
+  return def ? def[l] : '';
+}
+
 export function textoConv(aj, k, l) {
   const own = aj?.plantillas?.conv?.[k]?.[l];
   if (own != null && own !== '') return own;

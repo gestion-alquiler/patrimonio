@@ -1,4 +1,4 @@
-# Patrimonio · Admon. Fincas (versión 2)
+# Patrimonio · Admon. Fincas (versión 3 de escritorio)
 
 App web para gestionar viviendas y locales en alquiler: propiedades, inquilinos, contratos, cobros, gastos, balance, documentos, notas y copias de seguridad. Funciona en ordenador y móvil, también sin conexión.
 
@@ -50,6 +50,15 @@ Novedades de la versión 2.6:
 - Cartas y comunicados en las dos partes: carta libre o a partir de un modelo, a uno o varios destinatarios, cada uno en su idioma; los datos entre llaves ({propietario}, {importe_pendiente}…) se rellenan solos. Quedan guardadas con fecha y envío en la ficha del vecino o del inquilino (también de los anteriores).
 - Plantillas (menú lateral): modelos de carta editables, de serie y propios, y todos los textos de las convocatorias en castellano y català, con «Restaurar el texto original».
 - En la ventana de impresión se puede retocar cualquier texto antes de imprimir.
+
+Novedades de la versión 3 (escritorio completo):
+
+- Admon. Fincas · Actas: asistencia y representados con quórum por coeficiente, acuerdos por punto con votación (unanimidad, mayoría con recuento por propietario y coeficiente), PDF en català o castellano y notificación de acuerdos a los ausentes preparada como carta.
+- Etiquetas para sobres (Apli/Avery de 14, 16, 21 y 24 por hoja), empezando en cualquier etiqueta de una hoja usada: vecinos, ocupantes o inquilinos.
+- Admon. Fincas · Liquidación anual: un único PDF igual para todos (saldo a 31/12 del año anterior + ingresos − gastos = saldo final, fondo de reserva aparte, si la comunidad está en positivo o negativo, gastos a partes iguales y por coeficiente, obras y derramas con su saldo, quién debe y cuánto, reparto por propietario), en català o castellano, y exportación.
+- Patrimonio · Informes: resultado y rentabilidad por inmueble, gastos por categoría, días alquilado y datos para la renta (PDF y CSV para el gestor).
+- Patrimonio · Recibos de alquiler numerados, dos por hoja, desde cada cobro, por propiedad o de todas a la vez.
+- Conciliación bancaria en las dos partes: importa el extracto (Excel, CSV o Norma 43), sugiere con qué cobro o gasto va cada movimiento (rentas, cuotas, remesas de recibos, derramas, gastos ya apuntados o nuevos con su proveedor), acepta las seguras de golpe y anota el saldo del banco. Todo se puede deshacer.
 
 Todo se puede editar y borrar.
 

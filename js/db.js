@@ -1,9 +1,9 @@
 // Base de datos local (IndexedDB). Todo se guarda en el navegador del dispositivo.
 const DB_NAME = 'patrimonio';
-const DB_VERSION = 5;
-export const STORES = ['propiedades', 'inquilinos', 'contratos', 'pagos', 'gastos', 'documentos', 'notas', 'cartas', 'ajustes'];
+const DB_VERSION = 6;
+export const STORES = ['propiedades', 'inquilinos', 'contratos', 'pagos', 'gastos', 'documentos', 'notas', 'cartas', 'banco', 'ajustes'];
 // Admon. Fincas
-export const STORES_FIN = ['f_comunidades', 'f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_proveedores', 'f_juntas', 'f_cartas'];
+export const STORES_FIN = ['f_comunidades', 'f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_proveedores', 'f_juntas', 'f_cartas', 'f_banco'];
 
 let dbp = null;
 function open() {
@@ -17,7 +17,7 @@ function open() {
           const os = db.createObjectStore(s, { keyPath: 'id' });
           if (['contratos', 'pagos', 'gastos', 'documentos', 'notas', 'cartas'].includes(s)) os.createIndex('propiedadId', 'propiedadId');
           if (s === 'pagos') os.createIndex('contratoId', 'contratoId');
-          if (['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_juntas', 'f_cartas'].includes(s)) os.createIndex('comunidadId', 'comunidadId');
+          if (['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_juntas', 'f_cartas', 'f_banco'].includes(s)) os.createIndex('comunidadId', 'comunidadId');
         }
       }
     };
@@ -76,7 +76,7 @@ export async function getAjustesFincas() {
 export async function setAjustesFincas(a) { a.id = 'fincas'; return db.put('ajustes', a); }
 
 export async function borrarComunidad(id) {
-  for (const s of ['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_juntas', 'f_cartas']) {
+  for (const s of ['f_vecinos', 'f_cobros', 'f_gastos', 'f_derramas', 'f_juntas', 'f_cartas', 'f_banco']) {
     const items = await db.by(s, 'comunidadId', id);
     for (const it of items) await db.del(s, it.id);
   }

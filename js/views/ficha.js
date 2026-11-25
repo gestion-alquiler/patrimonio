@@ -174,7 +174,7 @@ function pagos({ p, c, d }) {
     }
   });
   const cob = d.pagos.filter(x => x.propiedadId === p.id && x.anio === state.anio).reduce((a, x) => a + Number(x.importe || 0), 0);
-  return `<section class="card pad stack"><div class="head" style="align-items:center"><h2>Cobros ${state.anio}</h2><div class="actions">${yearSel()}${c ? '<button class="btn primary" data-a="cobro">+ Registrar cobro</button>' : ''}</div></div>
+  return `<section class="card pad stack"><div class="head" style="align-items:center"><h2>Cobros ${state.anio}</h2><div class="actions">${yearSel()}<button class="btn" data-a="recibos">Recibos</button>${c ? '<button class="btn primary" data-a="cobro">+ Registrar cobro</button>' : ''}</div></div>
     <div class="tw"><div class="pgrid"><div></div>${MES3.map(m => `<div class="mh">${m}</div>`).join('')}${filas.join('')}</div></div>
     <div class="legend"><span><i style="background:#EEF7F0;border-color:#CFE6D5"></i>Cobrado (importe y fecha)</span><span><i style="background:#fff;border:2px solid #E0B4AF"></i>Vencido sin cobrar</span><span><i style="background:var(--warn-bg)"></i>Cobro parcial</span><span><i style="background:#F7F6F2"></i>Aún no vence (importe esperado)</span><span><i style="background:transparent;border-style:dashed"></i>Sin contrato o anterior al control</span></div>
     <div class="small muted">Pulsa una casilla para registrar, ver o borrar sus cobros. Cobrado en ${state.anio}: <b class="num">${eur(cob)}</b></div></section>`;
@@ -330,7 +330,7 @@ function formCobro(p, c, d, pre, done) {
   modal({
     title: 'Registrar cobro', submit: 'Guardar cobro',
     body: `<div class="small muted">${esc(p.direccion)} · ${esc(d.inq(k.inquilinoId)?.nombre || '')}</div>
-    ${existentes.length ? `<div class="stack"><b>Cobros ya registrados${con0 === 'basura' ? ' de basura ' + y0 : ' en ' + MESES[m0 - 1].toLowerCase() + ' ' + y0}</b>${existentes.map(x => `<div class="alert" style="align-items:center"><div style="flex:1"><b class="num">${eur(x.importe)}</b> el ${fecha(x.fecha)}${x.forma ? ' · ' + esc(x.forma) : ''}${x.nota ? ' · ' + esc(x.nota) : ''}</div><button type="button" class="btn sm danger" data-delpago="${x.id}">Borrar</button></div>`).join('')}</div>` : ''}
+    ${existentes.length ? `<div class="stack"><b>Cobros ya registrados${con0 === 'basura' ? ' de basura ' + y0 : ' en ' + MESES[m0 - 1].toLowerCase() + ' ' + y0}</b>${existentes.map(x => `<div class="alert" style="align-items:center"><div style="flex:1"><b class="num">${eur(x.importe)}</b> el ${fecha(x.fecha)}${x.forma ? ' · ' + esc(x.forma) : ''}${x.nota ? ' · ' + esc(x.nota) : ''}</div><button type="button" class="btn sm" data-recpago="${x.id}">Recibo${x.recibo ? ' ' + esc(x.recibo) : ''}</button><button type="button" class="btn sm danger" data-delpago="${x.id}">Borrar</button></div>`).join('')}</div>` : ''}
     <div class="fgrid">
       ${select('Concepto', 'concepto', con0, conceptoOpts)}
       ${select('Mes que paga', 'mes', `${y0}-${m0}`, (() => { const o = []; for (let yy = y0 - 1; yy <= y0 + 1; yy++) for (let mm = 1; mm <= 12; mm++) if (cubreMes(k, yy, mm)) o.push([`${yy}-${mm}`, `${MESES[mm - 1]} ${yy}`]); return o; })())}
@@ -348,6 +348,8 @@ function formCobro(p, c, d, pre, done) {
       toast('Cobro guardado'); done();
     },
   });
+  document.querySelectorAll('[data-recpago]').forEach(b => b.onclick = async () => { const x = d.pagos.find(q => q.id === b.dataset.recpago); const { imprimirRecibos } = await import('../recibos.js');
+    await imprimirRecibos(d.pagos.filter(q => q.contratoId === x.contratoId && q.anio === x.anio && q.concepto === x.concepto && (x.concepto === 'basura' || q.mes === x.mes)), d, 'Recibo'); document.getElementById('modal-root').innerHTML = ''; done(); });
   document.querySelectorAll('[data-delpago]').forEach(b => b.onclick = async () => { await db.del('pagos', b.dataset.delpago); toast('Cobro borrado'); document.getElementById('modal-root').innerHTML = ''; done(); });
   const fs = document.querySelector('[name=concepto]'), fm = document.querySelector('[name=mes]'), fy = document.querySelector('[name=anioB]'), fi = document.querySelector('[name=importe]');
   const vis = () => { fm.closest('.field').style.display = fs.value === 'basura' ? 'none' : ''; fy.closest('.field').style.display = fs.value === 'basura' ? '' : 'none'; };
@@ -405,6 +407,7 @@ export function bind(el, [id, tab, sub, extra], d, refresh) {
   const p = d.props.find(x => x.id === id); if (!p) return;
   if (tab === 'carta') return bindRedactar(el, p, sub, extra, d);
   if (tab === 'cartas') bindTabCartas(el, p, d, refresh);
+  el.querySelectorAll('[data-a=recibos]').forEach(b => b.onclick = async () => { const { dialogoRecibos } = await import('../recibos.js'); dialogoRecibos(d, p.id, refresh); });
   const c = contratoActivo(d.contratos, p.id);
   const on = (sel, fn) => el.querySelectorAll(sel).forEach(b => b.addEventListener('click', (e) => fn(b, e)));
   const anio = el.querySelector('#anio'); if (anio) anio.onchange = () => { state.anio = Number(anio.value); refresh(); };
