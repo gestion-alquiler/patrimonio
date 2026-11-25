@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { esc, eur, num, modal, field, select, textarea, money, fd, toast } from '../ui.js';
 import { contratoActivo, deudaContrato, balanceAnual, fotoPortada } from '../calc.js';
-import { cargarEjemplo } from '../ejemplo.js';
+import { cargarPrueba } from '../prueba.js';
 
 let filtro = 'todas', busca = '';
 const urls = [];
@@ -38,7 +38,7 @@ export async function render(_, d) {
     <div class="ft"><div><div class="small muted">Renta</div><b class="num">${i.c ? eur(i.c.renta) : '—'}</b></div>
     <div><div class="small muted">Margen ${new Date().getFullYear()}</div><b class="num ${i.bal.margen < 0 ? 'neg' : ''}">${eur(i.bal.margen, 0)}</b></div></div></div></a>`).join('') || '<div class="muted">Ninguna propiedad coincide con el filtro.</div>'}</div>`
   : `<div class="card empty"><h2>Aún no hay propiedades</h2><p style="margin:0">Empieza dando de alta tu primera vivienda o local.</p>
-     <div class="actions"><button class="btn primary" data-a="nueva">+ Nueva propiedad</button><button class="btn" data-a="ejemplo">Probar con datos de ejemplo</button></div></div>`}
+     <div class="actions"><button class="btn primary" data-a="nueva">+ Nueva propiedad</button><button class="btn" data-a="prueba">Cargar datos de prueba</button></div></div>`}
   </div>`;
 }
 
@@ -47,8 +47,8 @@ export function bind(el, _, d, refresh) {
   const s = el.querySelector('#busca');
   if (s) { s.oninput = () => { busca = s.value; clearTimeout(s._t); s._t = setTimeout(async () => { await refresh(); const n = document.getElementById('busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); }; }
   el.querySelectorAll('[data-a=nueva]').forEach(b => b.onclick = () => formPropiedad(null, (p) => { location.hash = '#/propiedad/' + p.id; }));
-  const ej = el.querySelector('[data-a=ejemplo]');
-  if (ej) ej.onclick = async () => { await cargarEjemplo(); toast('Datos de ejemplo cargados. Puedes borrarlos en Ajustes.'); refresh(); };
+  const ej = el.querySelector('[data-a=prueba]');
+  if (ej) ej.onclick = async () => { ej.disabled = true; ej.textContent = 'Cargando…'; await cargarPrueba(); toast('Datos de prueba cargados. Se borran desde Ajustes.'); refresh(); };
 }
 
 export function formPropiedad(p, done) {

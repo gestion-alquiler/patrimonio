@@ -1,6 +1,7 @@
 import { db, STORES_FIN, getAjustesFincas, setAjustesFincas } from '../../db.js';
 import { esc, fecha, tamano, toast, confirmar, field, select, fd, diasEntre, hoyISO } from '../../ui.js';
 import { htmlCopias, bindCopias } from '../../copias.js';
+import { htmlPrueba, bindPrueba } from '../../pruebaUI.js';
 import { elegirArchivos } from '../../files.js';
 import { importarDialogo } from './comunidades.js';
 
@@ -28,6 +29,7 @@ export async function render(_, d) {
       <div class="small muted">Borra todas las comunidades de este dispositivo. Haz antes una copia.</div>
       <div class="actions"><button class="btn danger" data-a="borrarTodo">Borrar todos los datos de Admon. Fincas</button></div></section>
   </div>
+  ${await htmlPrueba()}
   <section class="card pad small muted">Tus datos se guardan en este navegador y dispositivo. Próximamente se sincronizarán con tu Google Drive. Mientras tanto, usa las copias .zip.</section>
   </div>`;
 }
@@ -35,6 +37,7 @@ export async function render(_, d) {
 export function bind(el, _, d, refresh) {
   const on = (s, fn) => el.querySelectorAll(s).forEach(b => b.addEventListener('click', () => fn(b)));
   bindCopias(el, 'fin', refresh);
+  bindPrueba(el, refresh);
   on('[data-a=excel]', () => importarDialogo(d, refresh));
   on('[data-a=borrarTodo]', async () => {
     if (!(await confirmar('Borrar Admon. Fincas', 'Se borrarán <b>todas</b> las comunidades, vecinos, cobros, gastos y derramas de este dispositivo.', 'Borrar todo'))) return;

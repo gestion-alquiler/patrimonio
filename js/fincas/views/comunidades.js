@@ -34,7 +34,7 @@ export async function render(_, d) {
     <div class="actions" style="justify-content:flex-end">${i.c.archivada ? `<button class="btn sm" data-recuperar="${i.c.id}">Recuperar</button><button class="btn sm danger" data-eliminar="${i.c.id}">Eliminar</button>` : `<a class="btn sm" href="#/finca/${i.c.id}">Abrir</a><button class="btn sm danger" data-baja="${i.c.id}">Dar de baja</button>`}</div>
   </article>`).join('')}</div>`
   : `<div class="card empty"><h2>${verArchivadas ? 'No hay comunidades archivadas' : 'Aún no hay comunidades'}</h2>${verArchivadas ? '' : `<p style="margin:0;max-width:540px">Crea una comunidad y ve añadiendo sus vecinos, o importa directamente tu Excel de contabilidad de cuotas.</p>
-    <div class="actions"><button class="btn primary" data-a="nueva">+ Nueva comunidad</button><button class="btn" data-a="importar">Importar desde Excel</button></div>`}</div>`}
+    <div class="actions"><button class="btn primary" data-a="nueva">+ Nueva comunidad</button><button class="btn" data-a="importar">Importar desde Excel</button><button class="btn" data-a="prueba">Cargar datos de prueba</button></div>`}</div>`}
   ${nArch || verArchivadas ? `<div><button class="linkbtn" data-a="archivadas">${verArchivadas ? '← Ver comunidades activas' : `Ver comunidades archivadas (${nArch})`}</button></div>` : ''}
   </div>`;
 }
@@ -44,6 +44,7 @@ export function bind(el, _, d, refresh) {
   on('[data-a=nueva]', () => formComunidad(null, (c) => { location.hash = '#/finca/' + c.id; }));
   on('[data-a=archivadas]', () => { verArchivadas = !verArchivadas; refresh(); });
   on('[data-a=importar]', () => importarDialogo(d, refresh));
+  on('[data-a=prueba]', async (b) => { b.disabled = true; b.textContent = 'Cargando…'; const { cargarPrueba } = await import('../../prueba.js'); await cargarPrueba(); toast('Datos de prueba cargados. Se borran desde Ajustes.'); refresh(); });
   on('[data-baja]', (b) => darDeBaja(d.coms.find(c => c.id === b.dataset.baja), refresh));
   on('[data-recuperar]', async (b) => { const c = d.coms.find(x => x.id === b.dataset.recuperar); await db.put('f_comunidades', { ...c, archivada: false }); toast('Comunidad recuperada'); refresh(); });
   on('[data-eliminar]', async (b) => { const c = d.coms.find(x => x.id === b.dataset.eliminar);

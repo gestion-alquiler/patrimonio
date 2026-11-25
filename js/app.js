@@ -73,7 +73,8 @@ async function route() {
   const main = document.getElementById('main');
   const data = mod === 'pat' ? await cargarTodo() : await cargarFincas();
   const refresh = () => route();
-  main.innerHTML = await view.render(parts.slice(1), data);
+  const demo = (mod === 'pat' ? data.props : data.coms).some(x => x.prueba);
+  main.innerHTML = (demo ? `<div class="demo">Estás viendo <b>datos de prueba</b> inventados. <a href="${mod === 'pat' ? '#/ajustes' : '#/fajustes'}">Borrarlos en Ajustes</a></div>` : '') + await view.render(parts.slice(1), data);
   if (view.bind) view.bind(main, parts.slice(1), data, refresh);
   await pintarSidebar(mod, activo, data.aj);
   if (window.__lastRoute !== location.hash) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }

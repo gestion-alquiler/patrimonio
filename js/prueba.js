@@ -1,0 +1,262 @@
+// Datos de prueba inventados para Patrimonio y Admon. Fincas.
+// Todo lo que se crea aquí lleva prueba:true, así se puede borrar sin tocar los datos reales.
+import { db, STORES, STORES_FIN } from './db.js';
+import { hoyISO } from './ui.js';
+
+// Generador pseudoaleatorio con semilla: siempre salen los mismos datos
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const r = rng(20261125);
+const pick = (a) => a[Math.floor(r() * a.length)];
+const r2 = (n) => Math.round(n * 100) / 100;
+const iso = (y, m, d) => { const dt = new Date(y, m - 1, d); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; };
+const ym = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
+const P = (o) => ({ ...o, prueba: true });
+const put = (s, o) => db.put(s, P(o));
+
+/* ---------- Archivos inventados ---------- */
+
+async function fotoFachada(colorPared, colorTejado, pisos = 3, local = false) {
+  const cv = document.createElement('canvas'); cv.width = 800; cv.height = 520;
+  const g = cv.getContext('2d');
+  const cielo = g.createLinearGradient(0, 0, 0, 520); cielo.addColorStop(0, '#9CC3E0'); cielo.addColorStop(1, '#DCEAF3');
+  g.fillStyle = cielo; g.fillRect(0, 0, 800, 520);
+  g.fillStyle = '#B9B4A8'; g.fillRect(0, 470, 800, 50);
+  const top = 470 - pisos * 105 - 20;
+  g.fillStyle = colorPared; g.fillRect(150, top, 500, 470 - top);
+  g.fillStyle = colorTejado; g.fillRect(135, top - 22, 530, 26);
+  for (let p = 0; p < pisos; p++) for (let i = 0; i < 3; i++) {
+    const x = 195 + i * 150, y = top + 25 + p * 105;
+    if (local && p === pisos - 1) continue;
+    g.fillStyle = '#3E5468'; g.fillRect(x, y, 70, 62); g.fillStyle = '#7A9BB5'; g.fillRect(x + 6, y + 6, 26, 50); g.fillRect(x + 38, y + 6, 26, 50);
+    g.fillStyle = '#5A4A3A'; g.fillRect(x - 8, y + 62, 86, 6);
+  }
+  if (local) { g.fillStyle = '#2F3B45'; g.fillRect(190, 380, 420, 90); g.fillStyle = '#8FA7B8'; g.fillRect(200, 390, 400, 70); }
+  else { g.fillStyle = '#4A3526'; g.fillRect(370, 395, 60, 75); }
+  const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.8));
+  return new File([blob], 'fachada.jpg', { type: 'image/jpeg' });
+}
+
+function pdfSimple(titulo, lineas) {
+  const esc = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[()\\]/g, ' ');
+  const txt = ['BT /F1 18 Tf 60 780 Td (' + esc(titulo) + ') Tj ET', ...lineas.map((l, i) => `BT /F1 11 Tf 60 ${740 - i * 18} Td (${esc(l)}) Tj ET`), 'BT /F1 9 Tf 60 60 Td (DOCUMENTO DE PRUEBA - DATOS INVENTADOS) Tj ET'].join('\n');
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${txt.length} >>\nstream\n${txt}\nendstream`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  let out = '%PDF-1.4\n'; const off = [];
+  objs.forEach((o, i) => { off.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const x = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${off.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${x}\n%%EOF`;
+  return new File([out], titulo.replace(/\W+/g, '_') + '.pdf', { type: 'application/pdf' });
+}
+
+async function doc(file, meta) {
+  return put('documentos', { ...meta, archivo: file.name, mime: file.type, size: file.size, fecha: meta.fecha || hoyISO(), blob: file });
+}
+
+/* ---------- Patrimonio ---------- */
+
+const NOMBRES = ['Marta Puig Ferrer', 'Jordi Vidal Soler', 'Ana López Martín', 'Pau Roca Serra', 'Laia Font Mas', 'Carlos Ruiz García', 'Núria Casals Pons', 'Sergio Navarro Gil', 'Elena Torres Vila',
+  'David Romero Sanz', 'Montse Riera Bosch', 'Javier Molina Ortiz', 'Clara Sala Prat', 'Oriol Camps Vives', 'Lucía Fernández Ramos', 'Arnau Costa Jové'];
+
+export async function cargarPruebaPatrimonio() {
+  const hoy = hoyISO(), Y = Number(hoy.slice(0, 4)), M = Number(hoy.slice(5, 7)), D = Number(hoy.slice(8, 10));
+  const props = [
+    ['C/ Major 24, 1º 1ª', 'Sabadell', 'Piso', 85, 3, 2012, 138000, '#E8D9C0', '#8A4B3A'],
+    ['C/ Major 24, 2º 2ª', 'Sabadell', 'Piso', 85, 3, 2014, 129000, '#E8D9C0', '#8A4B3A'],
+    ['Av. Catalunya 112, 3º 1ª', 'Terrassa', 'Piso', 72, 2, 2016, 112000, '#D9C4B0', '#6B4A3A'],
+    ['C/ Sant Pere 8, bajos', 'Sabadell', 'Local', 110, 0, 2010, 165000, '#CFC8BC', '#55606A'],
+    ['Rambla 45, 4º 2ª', 'Terrassa', 'Piso', 95, 3, 2019, 176000, '#EADFCB', '#7A3E2E'],
+    ['C/ Indústria 17, 1º', 'Sant Quirze', 'Piso', 64, 2, 2018, 98000, '#F0E4D0', '#9A5A40'],
+    ['Pg. de la Plaça 3, ático', 'Sabadell', 'Ático', 70, 2, 2021, 189000, '#E2D6C6', '#5E3B2E'],
+    ['C/ Gràcia 56, 2º 1ª', 'Barberà', 'Piso', 80, 3, 2008, 121000, '#DCCDB8', '#844A38'],
+    ['C/ Montserrat 9, plaza 14', 'Sabadell', 'Garaje', 12, 0, 2015, 14000, null, null],
+    ['C/ del Sol 31, local 2', 'Terrassa', 'Local', 60, 0, 2017, 72000, '#CBC5BA', '#4E5A64'],
+  ];
+  const ids = [];
+  for (const [i, [dir, zona, tipo, m2, hab, ay, precio, cp, ct]] of props.entries()) {
+    const p = await put('propiedades', { direccion: dir, zona, tipo, m2, habitaciones: hab || '', fechaCompra: iso(ay, 1 + (i * 5) % 12, 10 + i), precioCompra: precio, gastosCompra: Math.round(precio * 0.1),
+      valorActual: Math.round(precio * (1.2 + r() * 0.4) / 1000) * 1000, refCatastral: `${7000000 + i * 1371}DF${2000 + i * 7}N000${i}XY`, comunidadAdmin: tipo === 'Garaje' ? 'Comunidad Garaje Montserrat' : pick(['Fincas Vallès', 'Administracions Puig', 'Gestió Finques Riera']),
+      seguro: tipo === 'Garaje' ? '' : pick(['Mapfre Hogar', 'Allianz Hogar', 'Línea Directa', 'Zurich Hogar']) + ' · póliza ' + (40000000 + i * 913), seguroVence: iso(Y + (i % 3 === 0 ? 0 : 1), 1 + (i * 3) % 12, 1), certEnergetico: tipo === 'Garaje' ? '' : pick(['D', 'E', 'E', 'F', 'C']) });
+    ids.push(p);
+    if (cp) await doc(await fotoFachada(cp, ct, tipo === 'Local' ? 2 : 3 + (i % 2), tipo === 'Local'), { propiedadId: p.id, tipo: 'foto', nombre: 'Fachada' });
+    if (i < 4) await doc(pdfSimple('Escritura de compraventa', [dir + ', ' + zona, 'Precio: ' + precio + ' euros', 'Notaria inventada'], ), { propiedadId: p.id, tipo: 'escritura', nombre: 'Escritura ' + dir });
+  }
+  // Contratos: [propiedad, renta, inicio, basura, mesesQueDebe, pasado]
+  const plan = [
+    { p: 0, renta: 780, ini: [Y - 3, 9, 1], basura: 'inquilino', bimp: 32, debe: [], antes: { renta: 720, ini: [Y - 6, 9, 1], fin: [Y - 3, 8, 31], motivo: 'Fin de contrato' } },
+    { p: 1, renta: 750, ini: [Y - 1, 2, 1], basura: 'propietario', debe: [M - 1, M] },
+    { p: 2, renta: 690, ini: [Y - 2, 6, 1], basura: 'inquilino', bimp: 28, debe: [] },
+    { p: 3, renta: 1150, ini: [Y - 4, 1, 1], basura: 'inquilino', bimp: 45, debe: [M] },
+    { p: 4, renta: 980, ini: [Y, 3, 1], basura: 'propietario', debe: [], antes: { renta: 900, ini: [Y - 3, 3, 1], fin: [Y, 1, 31], motivo: 'Traslado por trabajo' } },
+    { p: 5, renta: 640, ini: [Y - 1, 10, 1], basura: 'inquilino', bimp: 25, debe: [M - 3, M - 2, M - 1, M] },
+    { p: 6, renta: 1050, ini: [Y - 2, 4, 15], basura: 'propietario', debe: [] },
+    { p: 8, renta: 85, ini: [Y - 5, 1, 1], basura: 'no', debe: [] },
+    { p: 9, renta: 620, ini: [Y - 1, 1, 1], basura: 'inquilino', bimp: 30, debe: [], fin: [Y, 4, 30], motivo: 'Cierre del negocio' },
+  ];
+  let n = 0;
+  const desde = `${Y - 1}-01`;
+  for (const k of plan) {
+    const p = ids[k.p];
+    const crea = async (renta, ini, finReal, estado, deuda, motivo) => {
+      const nombre = NOMBRES[n++ % NOMBRES.length];
+      const inq = await put('inquilinos', { nombre, dni: `${40000000 + n * 7311}${'TRWAGMYFPDXBNJZSQVHLCKE'[n % 23]}`, telefono: '6' + String(10000000 + n * 1234567).slice(0, 8), email: nombre.split(' ')[0].toLowerCase() + '@example.com', idioma: n % 3 ? 'ca' : 'es', iban: `ES76 2100 0000 ${String(1000 + n).padStart(4, '0')} 0000 ${String(n * 37).padStart(4, '0')}` });
+      const inicio = iso(...ini), finContrato = iso(ini[0] + (k.p === 3 ? 10 : ini[0] + 5 <= Y ? Y - ini[0] + 3 : 5), ini[1], ini[2] === 1 ? 1 : ini[2]);
+      const hist = [];
+      // Subidas anuales del IPC/IRAV
+      let rr = renta; const anios = Math.max(0, (finReal ? Number(finReal.slice(0, 4)) : Y) - ini[0]);
+      if (estado === 'activo') { rr = renta; for (let a = anios; a >= 1; a--) { if (ym(ini[0] + a, ini[1]) <= ym(Y, M)) hist.unshift({ desde: ym(ini[0] + a, ini[1]), importe: rr }); rr = r2(rr / 1.028); } hist.unshift({ desde: ym(...ini), importe: rr }); }
+      if (hist.length) renta = hist[hist.length - 1].importe;
+      const c = await put('contratos', { propiedadId: p.id, inquilinoId: inq.id, inicio, fin: finContrato, renta, diaPago: 5, actualizacion: ini[0] * 100 + ini[1] < 202305 ? 'IPC' : 'IRAV', mesActualizacion: ini[1],
+        fianza: p.tipo === 'Local' ? renta * 2 : renta, fianzaDeposito: 'INCASÒL', basuraPaga: k.basura, basuraImporte: k.bimp || 0, estado, cobrosDesde: desde > ym(...ini) ? desde : ym(...ini),
+        historialRenta: hist.length > 1 ? hist : undefined, avalista: n % 4 === 0 ? 'Avalista de prueba' : '',
+        ...(estado === 'finalizado' ? { fechaSalida: finReal, motivoSalida: motivo, fianzaDevuelta: renta - (n % 2 ? 0 : 150), descuentos: n % 2 ? '' : 'Pintura habitación' } : {}) });
+      await doc(pdfSimple('Contrato de arrendamiento', [p.direccion, 'Arrendatario: ' + nombre, 'Renta: ' + renta + ' euros/mes', 'Inicio: ' + inicio]), { propiedadId: p.id, contratoId: c.id, tipo: 'contrato', nombre: 'Contrato ' + nombre, fecha: inicio });
+      await doc(pdfSimple('DNI ' + nombre, ['Copia de documento de identidad', 'Inventado para pruebas']), { propiedadId: p.id, contratoId: c.id, tipo: 'dni', nombre: 'DNI ' + nombre, fecha: inicio });
+      if (n % 2) await doc(pdfSimple('Certificado de titularidad', ['Cuenta bancaria de ' + nombre]), { propiedadId: p.id, contratoId: c.id, tipo: 'cuenta', nombre: 'Certificado de cuenta', fecha: inicio });
+      if (n % 3) await doc(pdfSimple('Nominas', ['Tres ultimas nominas de ' + nombre]), { propiedadId: p.id, contratoId: c.id, tipo: 'nominas', nombre: 'Nóminas', fecha: inicio });
+      await doc(pdfSimple('Deposito de fianza INCASOL', ['Fianza: ' + (p.tipo === 'Local' ? renta * 2 : renta) + ' euros']), { propiedadId: p.id, contratoId: c.id, tipo: 'fianza', nombre: 'Resguardo depósito fianza', fecha: inicio });
+      // Cobros
+      const [cy, cm] = (desde > ym(...ini) ? desde : ym(...ini)).split('-').map(Number);
+      let y = cy, m = cm;
+      const finY = finReal ? Number(finReal.slice(0, 4)) : Y, finM = finReal ? Number(finReal.slice(5, 7)) : M;
+      while (y < finY || (y === finY && m <= finM)) {
+        const k2 = ym(y, m);
+        const actual = y === Y && m === M;
+        const noPaga = estado === 'activo' && y === Y && deuda.includes(m);
+        if (!noPaga && !(actual && D < 6)) {
+          const imp = (hist.filter(h => h.desde <= k2).pop() || { importe: renta }).importe;
+          const dia = Math.min(28, 1 + Math.floor(r() * 6));
+          await put('pagos', { contratoId: c.id, propiedadId: p.id, anio: y, mes: m, concepto: 'renta', importe: imp, fecha: iso(y, m, dia), forma: n % 3 === 0 ? 'Bizum' : 'Transferencia' });
+          if (k.basura === 'inquilino' && k.bimp) await put('pagos', { contratoId: c.id, propiedadId: p.id, anio: y, mes: m, concepto: 'basura', importe: k.bimp, fecha: iso(y, m, dia), forma: 'Transferencia' });
+        }
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      return c;
+    };
+    if (k.antes) await crea(k.antes.renta, k.antes.ini, iso(...k.antes.fin), 'finalizado', [], k.antes.motivo);
+    await crea(k.renta, k.ini, k.fin ? iso(...k.fin) : null, k.fin ? 'finalizado' : 'activo', k.debe.filter(x => x >= 1), k.motivo);
+  }
+  // Gastos de los dos últimos años
+  for (const [i, p] of ids.entries()) {
+    const garaje = p.tipo === 'Garaje';
+    const cuotaCom = garaje ? 18 : p.tipo === 'Local' ? 35 : 45 + (i % 4) * 10;
+    for (const y of [Y - 1, Y]) {
+      for (let t = 1; t <= 12; t += 3) { const f = iso(y, t, 5); await put('gastos', { propiedadId: p.id, categoria: 'Comunidad', concepto: `Cuota comunidad ${t === 1 ? '1T' : t === 4 ? '2T' : t === 7 ? '3T' : '4T'} ${y}`, proveedor: p.comunidadAdmin, importe: cuotaCom * 3, fecha: f, estado: f <= hoy ? 'pagado' : 'pendiente' }); }
+      const fIbi = iso(y, 7, 1); await put('gastos', { propiedadId: p.id, categoria: 'IBI', concepto: 'IBI ' + y, proveedor: 'Ajuntament de ' + p.zona, importe: r2((garaje ? 60 : 250 + p.m2 * 2.6) * (y === Y ? 1.02 : 1)), fecha: fIbi, estado: fIbi <= hoy ? 'pagado' : 'pendiente' });
+      if (!garaje) { const fs = iso(y, 1 + (i * 3) % 12, 1); await put('gastos', { propiedadId: p.id, categoria: 'Seguro', concepto: 'Seguro hogar ' + y, proveedor: (p.seguro || '').split(' · ')[0], importe: r2(150 + p.m2 * 1.1), fecha: fs, estado: fs <= hoy ? 'pagado' : 'pendiente' }); }
+      const fb = iso(y, 3, 20); if (!garaje) await put('gastos', { propiedadId: p.id, categoria: 'Basuras', concepto: 'Tasa de residuos ' + y, proveedor: 'Ajuntament de ' + p.zona, importe: p.tipo === 'Local' ? 210 : 115, fecha: fb, estado: fb <= hoy ? 'pagado' : 'pendiente' });
+    }
+  }
+  const mant = [[0, 'Mantenimiento', 'Reparación caldera', 'Calefaccions Vallès', 186.34], [1, 'Mantenimiento', 'Cambio grifo cocina', 'Fontaneria Roca', 95.5], [2, 'Mantenimiento', 'Persiana dormitorio', 'Persianes Sabadell', 142],
+    [4, 'Extraordinario / obras', 'Pintura completa antes de alquilar', 'Pintures Font', 1450], [5, 'Mantenimiento', 'Desatasco bajante', 'Desembussos 24h', 121], [6, 'Extraordinario / obras', 'Derrama fachada comunidad', 'Administracions Puig', 980],
+    [7, 'Mantenimiento', 'Revisión gas', 'Gas Natural Servicios', 78.65], [3, 'Gestoría / honorarios', 'Honorarios gestoría renta', 'Gestoria Vidal', 121], [9, 'Mantenimiento', 'Cerrajero cambio bombín', 'Serralleria Ràpida', 89]];
+  for (const [i, cat, con, prov, imp] of mant) {
+    const mm = Math.max(1, M - 1 - (i % 6)); const f = iso(Y, mm, 8 + i);
+    const factura = await doc(pdfSimple('Factura ' + prov, [con, 'Importe: ' + imp + ' euros']), { propiedadId: ids[i].id, tipo: 'factura', nombre: con + ' · factura', fecha: f });
+    await put('gastos', { propiedadId: ids[i].id, categoria: cat, concepto: con, proveedor: prov, importe: imp, fecha: f, estado: 'pagado', docId: factura.id });
+  }
+  await put('gastos', { propiedadId: ids[1].id, categoria: 'Mantenimiento', concepto: 'Revisión ITE (presupuesto aceptado)', proveedor: 'Arquitectes Associats', importe: 260, fecha: iso(Y, M, Math.min(28, D + 6)), estado: 'pendiente' });
+  const notas = [[1, 'Llama para decir que este mes y el anterior pagará tarde por un problema con la nómina.', 'Cobro'], [5, 'Le he enviado tres recordatorios por WhatsApp. No contesta. Valorar burofax.', 'Cobro'],
+    [0, 'La caldera hace ruido. Técnico avisado.', 'Incidencia'], [4, 'Nueva inquilina entra el 1 de marzo. Entregadas 2 copias de llaves.', 'Contrato'], [6, 'Pide permiso para poner toldo en la terraza. Dicho que sí.', ''], [3, 'Pregunta si puede ampliar horario: no afecta al contrato.', '']];
+  for (const [i, t, e] of notas) await put('notas', { propiedadId: ids[i].id, fecha: iso(Y, Math.max(1, M - (i % 4)), 3 + i), texto: t, etiqueta: e });
+}
+
+/* ---------- Admon. Fincas ---------- */
+
+const PROPIETARIOS = ['Josep Martí Riba', 'Rosa Ferrer Coll', 'Antonio García López', 'Mercè Vila Bosch', 'Francesc Soler Puig', 'Isabel Moreno Díaz', 'Joan Prat Roca', 'Carmen Jiménez Ruiz', 'Xavier Pons Mas',
+  'Teresa Serra Font', 'Manuel Romero Gil', 'Pilar Casas Vidal', 'Ramon Torres Sala', 'Dolores Navarro Ortega', 'Albert Riera Camps', 'Silvia Martín Sanz', 'Jaume Costa Pujol', 'Gemma Bosch Ferrer', 'Ángel Ruiz Moya', 'Neus Pujol Vila'];
+
+export async function cargarPruebaFincas() {
+  const hoy = hoyISO(), Y = Number(hoy.slice(0, 4)), M = Number(hoy.slice(5, 7)), D = Number(hoy.slice(8, 10));
+  const coms = [
+    { nombre: 'C/ Montserrat, 42', direccion: 'C/ Montserrat, 42', localidad: '08201 Sabadell', cif: 'H65000042', iban: 'ES12 2100 0042 1100 0000 4242', presidente: 'Rosa Ferrer Coll', periodicidad: 'mensual', presupuesto: 6200,
+      pisos: ['Baixos 1', 'Baixos 2', '1º 1ª', '1º 2ª', '2º 1ª', '2º 2ª', '3º 1ª', '3º 2ª'], coefs: [9.5, 8.5, 13, 12, 13, 12, 16.5, 15.5], morosos: { 4: 3, 7: 1 }, derrama: true, saldo: 4120.35, fondo: 960, ascensor: true },
+    { nombre: 'Av. Rambla, 118', direccion: 'Av. Rambla, 118', localidad: '08221 Terrassa', cif: 'H65000118', iban: 'ES34 0081 0118 0000 0118 1180', presidente: 'Albert Riera Camps', periodicidad: 'mensual', presupuesto: 8400,
+      pisos: ['Local 1', 'Local 2', '1º 1ª', '1º 2ª', '1º 3ª', '2º 1ª', '2º 2ª', '2º 3ª', '3º 1ª', '3º 2ª', '3º 3ª', 'Àtic'], coefs: [11, 9, 7.5, 7, 7.5, 7.5, 7, 7.5, 7.5, 7, 7.5, 13], morosos: { 1: 6 }, derrama: false, saldo: 7890.6, fondo: 1800, ascensor: true },
+    { nombre: 'Pg. del Parc, 7', direccion: 'Pg. del Parc, 7', localidad: '08192 Sant Quirze del Vallès', cif: 'H65000007', iban: 'ES56 0182 0007 0000 0007 0707', presidente: 'Jaume Costa Pujol', periodicidad: 'trimestral', presupuesto: 3600,
+      pisos: ['Baixos', '1º', '2º', '3º', '4º', '5º'], coefs: [18, 16.5, 16.5, 16.5, 16.5, 16], morosos: {}, derrama: false, saldo: 1630.1, fondo: 420, ascensor: false },
+  ];
+  let np = 0;
+  for (const cd of coms) {
+    const div = cd.periodicidad === 'trimestral' ? 4 : 12;
+    const com = await put('f_comunidades', { nombre: cd.nombre, direccion: cd.direccion, localidad: cd.localidad, cif: cd.cif, iban: cd.iban, banco: '', presidente: cd.presidente, vicepresidente: '', secretario: 'El administrador',
+      presupuesto: cd.presupuesto, periodicidad: cd.periodicidad, diaCobro: 10, fondoReserva: cd.fondo, saldoInicial: cd.saldo, saldoFecha: `${Y - 2}-12-31`, cobrosDesde: `${Y - 1}-01`, idioma: np % 2 ? 'es' : 'ca', normativa: 'Codi civil de Catalunya', notas: 'Comunidad de prueba con datos inventados.' });
+    const vs = [];
+    for (const [i, piso] of cd.pisos.entries()) {
+      const nombre = PROPIETARIOS[np++ % PROPIETARIOS.length];
+      const base = r2(cd.presupuesto * 0.95 * cd.coefs[i] / 100 / div), nueva = r2(cd.presupuesto * cd.coefs[i] / 100 / div);
+      const v = await put('f_vecinos', { comunidadId: com.id, piso, orden: i, propietario: nombre, dni: `${30000000 + np * 5113}${'TRWAGMYFPDXBNJZSQVHLCKE'[np % 23]}`, telefono: '6' + String(20000000 + np * 2345671).slice(0, 8),
+        email: nombre.split(' ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') + np + '@example.com', idioma: np % 3 ? 'ca' : 'es', avisosEmail: np % 4 !== 0, formaPago: i % 3 === 2 ? 'Transferencia' : 'Domiciliado',
+        iban: `ES91 2100 ${String(1000 + np).padStart(4, '0')} 0000 0000 ${String(np * 53).padStart(4, '0')}`, titular: nombre, coef: cd.coefs[i], cuota: nueva, cuotaHistorial: [{ desde: `${Y - 1}-01`, importe: base }, { desde: `${Y}-01`, importe: nueva }],
+        ocupante: i % 4 === 1 ? 'Inquilino de prueba' : '', saldoAnterior: 0, obs: i === 0 && piso.startsWith('Local') ? 'Local comercial: no usa ascensor.' : '' });
+      vs.push(v);
+    }
+    // Cuotas cobradas
+    for (const [i, v] of vs.entries()) {
+      const debe = cd.morosos[i] || 0;
+      for (const y of [Y - 1, Y]) for (let m = 1; m <= 12; m++) {
+        if (div === 4 && ![1, 4, 7, 10].includes(m)) continue;
+        if (y === Y && (m > M || (m === M && D < 12))) continue;
+        const nMes = (Y - y) * 12 + (M - m);
+        if (debe && nMes < debe * (div === 4 ? 3 : 1)) continue;
+        const imp = v.cuotaHistorial.filter(h => h.desde <= ym(y, m)).pop().importe;
+        const dia = v.formaPago === 'Domiciliado' ? 5 : 3 + Math.floor(r() * 20);
+        await put('f_cobros', { comunidadId: com.id, vecinoId: v.id, concepto: 'cuota', anio: y, mes: m, importe: imp, fecha: iso(y, m, dia), forma: v.formaPago === 'Domiciliado' ? 'Recibo domiciliado' : 'Transferencia' });
+      }
+    }
+    // Gastos ordinarios
+    const prov = { llum: 'Endesa', aigua: 'Aigües de Sabadell', neteja: 'Neteges Vallès SL', asc: 'Ascensores Orona', seg: 'Mapfre Comunidades', admin: 'Administración de fincas' };
+    for (const y of [Y - 1, Y]) for (let m = 1; m <= 12; m++) {
+      if (y === Y && m > M) break;
+      const g = (dd, concepto, proveedor, importe, grupo = 'coef') => { const f = iso(y, m, dd); if (f > hoy) return null; return put('f_gastos', { comunidadId: com.id, fecha: f, concepto, proveedor, importe: r2(importe), grupo, estado: 'pagado' }); };
+      const MES = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'][m - 1];
+      await g(4, `Llum escala ${MES}`, prov.llum, (cd.ascensor ? 85 : 32) + r() * 25);
+      await g(10, `Neteja escala ${MES}`, prov.neteja, cd.pisos.length > 10 ? 260 : 150, 'iguales');
+      if (cd.ascensor && m % 3 === 1) await g(12, `Manteniment ascensor ${Math.ceil(m / 3)}T`, prov.asc, 345.8);
+      if (m % 3 === 2) await g(15, `Aigua comunitària ${Math.ceil(m / 3)}T`, prov.aigua, 28 + r() * 12);
+      if (m % 3 === 0) await g(28, `Honoraris administració ${Math.ceil(m / 3)}T`, prov.admin, cd.pisos.length * 18, 'iguales');
+      if (m === 6) await g(3, `Assegurança multirisc ${y}`, prov.seg, cd.pisos.length * 95);
+    }
+    const extra = [[Y - 1, 4, 'Desembussament baixant', 'Desembussos 24h', 165], [Y - 1, 11, 'Canvi bombetes i fluorescents', 'Electricitat Pons', 92.4], [Y, Math.max(1, M - 3), 'Reparació porta d\'entrada', 'Serralleria Ràpida', 238.5]];
+    for (const [y, m, c, p, imp] of extra) await put('f_gastos', { comunidadId: com.id, fecha: iso(y, m, 14), concepto: c, proveedor: p, importe: imp, grupo: 'coef', estado: 'pagado' });
+    await put('f_gastos', { comunidadId: com.id, fecha: iso(Y, M, Math.min(28, D + 5)), concepto: 'Revisió extintors', proveedor: 'Extintors Vallès', importe: 96.8, grupo: 'coef', estado: 'pendiente' });
+    // Derrama de obras en tres plazos
+    if (cd.derrama) {
+      const m0 = Math.max(1, M - 5);
+      const der = await put('f_derramas', { comunidadId: com.id, concepto: 'Rehabilitació de façana', total: 18000, reparto: 'coef', cada: 2, fechaJunta: iso(Y, Math.max(1, m0 - 1), 20),
+        plazos: [0, 1, 2].map(k => { const dt = new Date(Y, m0 - 1 + k * 2, 1); return { mes: ym(dt.getFullYear(), dt.getMonth() + 1) }; }),
+        presupuesto: [{ partida: 'Bastida', importe: 4200 }, { partida: 'Reparació de façana', importe: 8900 }, { partida: 'Pintura', importe: 3600 }, { partida: 'Direcció d\'obra (arquitecte)', importe: 1300 }] });
+      for (const [k, pl] of der.plazos.entries()) {
+        if (pl.mes > ym(Y, M)) continue;
+        for (const [i, v] of vs.entries()) {
+          if ((i === 4 && k >= 1) || (i === 2 && k === 2)) continue;
+          const [py, pm] = pl.mes.split('-').map(Number);
+          await put('f_cobros', { comunidadId: com.id, vecinoId: v.id, concepto: 'derrama', derramaId: der.id, plazo: k, importe: r2(18000 * v.coef / 100 / 3), fecha: iso(py, pm, 8 + i), anio: py, mes: pm, forma: 'Transferencia' });
+        }
+      }
+      const pagos = [[0, 'Bastida · primer pagament', 'Bastides Vallès', 2100], [1, 'Bastida · segon pagament', 'Bastides Vallès', 2100], [1, 'Reparació de façana · certificació 1', 'Construccions Martí', 4450], [2, 'Direcció d\'obra', 'Arquitectes Associats', 650]];
+      for (const [k, c, p, imp] of pagos) { const [py, pm] = der.plazos[k].mes.split('-').map(Number); const f = iso(py, pm, 22); if (f <= hoy) await put('f_gastos', { comunidadId: com.id, fecha: f, concepto: c, proveedor: p, importe: imp, grupo: 'derrama', derramaId: der.id, estado: 'pagado' }); }
+    }
+  }
+}
+
+/* ---------- Cargar y borrar ---------- */
+
+export async function cargarPrueba() {
+  await cargarPruebaPatrimonio();
+  await cargarPruebaFincas();
+}
+
+export async function hayPrueba() {
+  const [a, b] = await Promise.all([db.all('propiedades'), db.all('f_comunidades')]);
+  return a.some(x => x.prueba) || b.some(x => x.prueba);
+}
+
+export async function borrarPrueba() {
+  let n = 0;
+  for (const s of STORES.concat(STORES_FIN)) {
+    if (s === 'ajustes') continue;
+    for (const it of await db.all(s)) if (it.prueba) { await db.del(s, it.id); n++; }
+  }
+  return n;
+}

@@ -2,8 +2,8 @@ import { db, STORES, getAjustes, setAjustes } from '../db.js';
 import { esc, fecha, tamano, toast, confirmar, field, select, fd, diasEntre, hoyISO } from '../ui.js';
 import { exportarCSV } from '../backup.js';
 import { htmlCopias, bindCopias } from '../copias.js';
+import { htmlPrueba, bindPrueba } from '../pruebaUI.js';
 import { elegirArchivos } from '../files.js';
-import { cargarEjemplo } from '../ejemplo.js';
 
 export async function render(_, d) {
   let uso = '', cuota = '';
@@ -31,9 +31,10 @@ export async function render(_, d) {
       <button class="btn" data-csv="gastos" style="justify-content:space-between">Gastos <span class="muted">CSV</span></button></div>
       <div class="small muted">Se abren directamente con Excel (separador punto y coma).</div>
       <h2 style="margin-top:12px">Zona de peligro</h2>
-      <div class="actions"><button class="btn" data-a="ejemplo">Cargar datos de ejemplo</button><button class="btn danger" data-a="borrarTodo">Borrar todos los datos</button></div>
+      <div class="actions"><button class="btn danger" data-a="borrarTodo">Borrar todos los datos de Patrimonio</button></div>
     </section>
   </div>
+  ${await htmlPrueba()}
   <section class="card pad small muted">Tus datos se guardan en este navegador y dispositivo. Próximamente se sincronizarán con tu Google Drive para usarlos a la vez en el móvil y el ordenador. Mientras tanto, usa las copias .zip.</section>
   </div>`;
 }
@@ -42,7 +43,7 @@ export function bind(el, _, d, refresh) {
   const on = (s, fn) => el.querySelectorAll(s).forEach(b => b.addEventListener('click', () => fn(b)));
   bindCopias(el, 'pat', refresh);
   on('[data-csv]', async (b) => { await exportarCSV(b.dataset.csv); toast('Archivo descargado'); });
-  on('[data-a=ejemplo]', async () => { if (d.props.length && !(await confirmar('Cargar ejemplo', 'Se añadirán 3 propiedades de ejemplo a tus datos actuales.', 'Añadir'))) return; await cargarEjemplo(); toast('Ejemplo cargado'); refresh(); });
+  bindPrueba(el, refresh);
   on('[data-a=borrarTodo]', async () => {
     if (!(await confirmar('Borrar todos los datos', 'Se borrarán <b>todas</b> las propiedades, contratos, cobros, gastos, documentos y notas de este dispositivo. Haz antes una copia si los quieres conservar.', 'Borrar todo'))) return;
     for (const s of STORES) if (s !== 'ajustes') await db.clear(s);

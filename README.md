@@ -38,6 +38,10 @@ App web para gestionar viviendas y locales en alquiler: propiedades, inquilinos,
 
 Todo se puede editar y borrar.
 
+## Datos de prueba (temporal)
+
+En Ajustes de cualquiera de las dos partes, «Cargar datos de prueba» rellena la app con 10 propiedades y 3 comunidades inventadas. «Borrar datos de prueba» quita solo lo inventado. Este bloque se quitará antes de empezar con los datos reales.
+
 ## Dónde se guardan los datos
 
 En el navegador de cada dispositivo (IndexedDB). **En GitHub solo está el programa, nunca tus datos.**
