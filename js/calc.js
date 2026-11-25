@@ -21,7 +21,7 @@ export function rentaEn(c, y, m) {
 
 export function esperado(c, y, m, concepto) {
   if (!cubreMes(c, y, m)) return 0;
-  if (concepto === 'basura') return c.basuraPaga === 'inquilino' ? Number(c.basuraImporte) || 0 : 0;
+  if (concepto === 'basura') return 0; // la basura es anual: ver basuraAnio()
   return rentaEn(c, y, m);
 }
 
@@ -44,6 +44,18 @@ export function estadoMes(c, pagos, y, m, concepto, hoy = hoyISO()) {
   return { estado: 'pendiente', esp, pag };
 }
 
+// Basura: un solo importe al año, sin fecha fija (depende del municipio)
+export function basuraAnio(c, pagos, y, hoy = hoyISO()) {
+  if (c.basuraPaga !== 'inquilino' || !Number(c.basuraImporte)) return null;
+  if (!Array.from({ length: 12 }, (_, i) => cubreMes(c, y, i + 1)).some(Boolean)) return null;
+  const esp = Number(c.basuraImporte) || 0;
+  const lista = pagos.filter(p => p.contratoId === c.id && p.concepto === 'basura' && p.anio === y);
+  const pag = lista.reduce((a, p) => a + (Number(p.importe) || 0), 0);
+  const previo = c.cobrosDesde && String(y) < c.cobrosDesde.slice(0, 4);
+  const estado = pag >= esp - 0.005 ? 'pagado' : previo ? 'previo' : pag > 0 ? 'parcial' : y < Number(hoy.slice(0, 4)) ? 'debe' : 'pendiente';
+  return { estado, esp, pag, lista };
+}
+
 // Deuda acumulada de un contrato hasta hoy (solo meses ya vencidos)
 export function deudaContrato(c, pagos, hoy = hoyISO()) {
   if (!c.inicio) return { total: 0, detalle: [] };
@@ -53,7 +65,7 @@ export function deudaContrato(c, pagos, hoy = hoyISO()) {
   const detalle = [];
   let total = 0, guard = 0;
   while ((y < hy || (y === hy && m <= hm)) && guard++ < 600) {
-    for (const concepto of ['renta', 'basura']) {
+    for (const concepto of ['renta']) {
       const e = estadoMes(c, pagos, y, m, concepto, hoy);
       if (e.estado === 'debe' || (e.estado === 'parcial' && `${ym(y, m)}-${String(Math.min(Number(c.diaPago) || 5, 28)).padStart(2, '0')}` < hoy)) {
         const falta = e.esp - e.pag; total += falta; detalle.push({ y, m, concepto, falta });
@@ -61,6 +73,12 @@ export function deudaContrato(c, pagos, hoy = hoyISO()) {
     }
     m++; if (m > 12) { m = 1; y++; }
   }
+  // Basura de años ya cerrados que no se ha cobrado entera
+  for (let yy = Number(desde.slice(0, 4)); yy < hy; yy++) {
+    const b = basuraAnio(c, pagos, yy, hoy);
+    if (b && (b.estado === 'debe' || (b.estado === 'parcial'))) { const falta = b.esp - b.pag; total += falta; detalle.push({ y: yy, m: 0, concepto: 'basura', falta }); }
+  }
+  detalle.sort((a, b) => (a.y - b.y) || (a.m - b.m));
   return { total, detalle };
 }
 
@@ -88,7 +106,7 @@ export function balanceAnual(y, pagos, gastos, propiedadId = null) {
 }
 
 export const CATEGORIAS_GASTO = ['Comunidad', 'IBI', 'Mantenimiento', 'Extraordinario / obras', 'Seguro', 'Basuras', 'Suministros', 'Gestoría / honorarios', 'Otros'];
-export const TIPOS_DOC = [['contrato', 'Contrato'], ['dni', 'DNI / NIE'], ['cuenta', 'Certificado de cuenta'], ['nominas', 'Nóminas'], ['trabajo', 'Contrato de trabajo'], ['aval', 'Aval / DNI avalista'], ['renta', 'Declaración de la renta'], ['fianza', 'Depósito de fianza'], ['inventario', 'Inventario / entrega de llaves'], ['escritura', 'Escritura'], ['certificado', 'Certificado energético'], ['factura', 'Factura / recibo'], ['foto', 'Foto'], ['otro', 'Otro']];
+export const TIPOS_DOC = [['contrato', 'Contrato'], ['dni', 'DNI / NIE'], ['cuenta', 'Certificado de cuenta'], ['nominas', 'Nóminas'], ['trabajo', 'Contrato de trabajo'], ['aval', 'Aval / DNI avalista'], ['renta', 'Declaración de la renta'], ['fianza', 'Depósito de fianza'], ['inventario', 'Inventario'], ['llaves', 'Entrega de llaves'], ['finalizacion', 'Finalización de contrato'], ['estado', 'Fotos del estado del piso'], ['burofax', 'Burofax / reclamación'], ['escritura', 'Escritura'], ['certificado', 'Certificado energético'], ['factura', 'Factura / recibo'], ['foto', 'Foto'], ['otro', 'Otro']];
 export const DOCS_INQUILINO = ['dni', 'cuenta', 'nominas', 'trabajo', 'aval', 'renta', 'fianza', 'inventario'];
 
 // Foto de portada de una propiedad: la elegida o, si no hay, la primera foto subida

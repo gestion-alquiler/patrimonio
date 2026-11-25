@@ -16,7 +16,7 @@ export async function render(_, d) {
     const foto = fotoPortada(p, d.documentos);
     let fotoUrl = '';
     if (foto) { fotoUrl = URL.createObjectURL(foto.blob); urls.push(fotoUrl); }
-    const estado = !c ? ['Libre', 'neutral'] : deuda > 0.005 ? ['Debe ' + eur(deuda), 'bad'] : ['Al día', 'ok'];
+    const estado = !c ? ['Libre', 'neutral'] : deuda > 0.005 ? ['Pendiente ' + eur(deuda), 'bad'] : ['Al día', 'ok'];
     const k = !c ? 'libre' : deuda > 0.005 ? 'deuda' : 'alq';
     return { p, c, deuda, bal, fotoUrl, estado, k, inq: c ? d.inq(c.inquilinoId) : null };
   });
@@ -24,7 +24,7 @@ export async function render(_, d) {
   const q = busca.toLowerCase();
   const vis = items.filter(i => (filtro === 'todas' || (filtro === 'alq' ? !!i.c : i.k === filtro)) &&
     (!q || [i.p.direccion, i.p.zona, i.p.tipo, i.inq?.nombre].join(' ').toLowerCase().includes(q)));
-  const chips = [['todas', 'Todas'], ['alq', 'Alquiladas'], ['libre', 'Libres'], ['deuda', 'Con deuda']]
+  const chips = [['todas', 'Todas'], ['alq', 'Alquiladas'], ['libre', 'Libres'], ['deuda', 'Con pendiente']]
     .map(([id, l]) => `<button type="button" class="chip ${filtro === id ? 'on' : ''}" data-f="${id}" aria-pressed="${filtro === id}">${l} <span style="opacity:.75">${n[id]}</span></button>`).join('');
   return `<div class="page">
   <div class="head"><div><h1>Propiedades</h1><div class="sub">${n.todas} en total · ${n.alq} alquiladas · ${n.libre} libres</div></div>

@@ -17,7 +17,7 @@ export async function render(_, d) {
     return { p, c, inq: d.inq(c.inquilinoId), esp, est, deuda };
   });
   const avisos = [];
-  filas.filter(f => f.deuda.total > 0.005).forEach(f => avisos.push({ cls: 'bad', tipo: 'Impago', t: `${f.p.direccion} · ${f.inq?.nombre || ''}`, dsc: `Debe ${eur(f.deuda.total)} · ${resumenDeuda(f.deuda.detalle)}`, href: `#/propiedad/${f.p.id}/pagos` }));
+  filas.filter(f => f.deuda.total > 0.005).forEach(f => avisos.push({ cls: 'bad', tipo: 'Pendiente', t: `${f.p.direccion} · ${f.inq?.nombre || ''}`, dsc: `Pendiente ${eur(f.deuda.total)} · ${resumenDeuda(f.deuda.detalle)}`, href: `#/propiedad/${f.p.id}/pagos` }));
   alq.forEach(({ p, c }) => {
     if (c.fin) { const dd = diasEntre(hoy, c.fin); if (dd >= 0 && dd <= 150) avisos.push({ cls: 'warn', tipo: 'Contrato', t: `${p.direccion} · vence el ${fecha(c.fin)}`, dsc: `Faltan ${dd} días. Si no quieres renovar, el preaviso del arrendador es de 4 meses.`, href: `#/propiedad/${p.id}/inquilino` }); }
     if (c.mesActualizacion && c.actualizacion && c.actualizacion !== 'Ninguna') {
@@ -48,7 +48,7 @@ export async function render(_, d) {
   <section class="kpis" aria-label="Indicadores">
     <div class="card kpi"><div class="l">Propiedades</div><div class="v">${d.props.length}</div><div class="s">${alq.length} alquiladas · ${d.props.length - alq.length} libres</div></div>
     <div class="card kpi"><div class="l">Cobrado este mes</div><div class="v">${eur(cobMes, 0)}</div><div class="s">de ${eur(espMes, 0)} previstos</div></div>
-    <div class="card kpi"><div class="l">Pendiente de cobro</div><div class="v ${deudaTot > 0.005 ? 'neg' : ''}">${eur(deudaTot, 0)}</div><div class="s">${filas.filter(f => f.deuda.total > 0.005).length} inquilinos con deuda</div></div>
+    <div class="card kpi"><div class="l">Pendiente de cobro</div><div class="v ${deudaTot > 0.005 ? 'neg' : ''}">${eur(deudaTot, 0)}</div><div class="s">${filas.filter(f => f.deuda.total > 0.005).length} inquilinos con importes pendientes</div></div>
     <div class="card kpi"><div class="l">Margen ${y}</div><div class="v ${bal.margen < 0 ? 'neg' : ''}">${eur(bal.margen, 0)}</div><div class="s">Ingresos ${eur(bal.ing, 0)} − gastos ${eur(bal.gas, 0)}</div></div>
   </section>
   <div class="row">

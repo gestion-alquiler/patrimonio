@@ -1,6 +1,6 @@
 import { db, borrarComunidad } from '../../db.js';
 import { esc, eur, num, modal, confirmar, field, select, textarea, money, fd, toast } from '../../ui.js';
-import { vecinosDe, deudaVecino, saldoActual, cuotaEn } from '../calc.js';
+import { vecinosDe, deudaVecino, cuotaEn } from '../calc.js';
 import { importarExcel } from '../importar.js';
 import { elegirArchivos } from '../../files.js';
 
@@ -12,25 +12,24 @@ export async function render(_, d) {
     const vs = vecinosDe(d, c.id);
     const deudas = vs.map(v => deudaVecino(c, v, d).total);
     const pend = deudas.reduce((a, x) => a + x, 0), morosos = deudas.filter(x => x > 0.1).length;
-    return { c, vs, pend, morosos, cuotaMes: vs.reduce((a, v) => a + cuotaEn(v, y, m), 0), saldo: saldoActual(c, d) };
+    return { c, vs, pend, morosos, cuotaMes: vs.reduce((a, v) => a + cuotaEn(v, y, m), 0), gastosAnio: d.gastos.filter(g => g.comunidadId === c.id && g.estado !== 'pendiente' && (g.fecha || '').startsWith(String(y))).reduce((a, g) => a + Number(g.importe || 0), 0) };
   });
   const nArch = d.coms.filter(c => c.archivada).length;
   const act = d.coms.filter(c => !c.archivada);
-  const tot = items.reduce((a, i) => ({ pend: a.pend + i.pend, saldo: a.saldo + i.saldo, n: a.n + i.vs.length }), { pend: 0, saldo: 0, n: 0 });
+  const tot = items.reduce((a, i) => ({ pend: a.pend + i.pend, n: a.n + i.vs.length }), { pend: 0, n: 0 });
   return `<div class="page">
   <div class="head"><div><div class="small b" style="color:var(--accent);letter-spacing:.06em;text-transform:uppercase">Admon. Fincas</div><h1>${verArchivadas ? 'Comunidades archivadas' : 'Comunidades de propietarios'}</h1></div>
     <div class="actions"><button class="btn" data-a="importar">Importar desde Excel</button><button class="btn primary" data-a="nueva">+ Nueva comunidad</button></div></div>
-  ${!verArchivadas && act.length ? `<section class="kpis" aria-label="Indicadores">
+  ${!verArchivadas && act.length ? `<section class="kpis" aria-label="Indicadores" style="grid-template-columns:repeat(2,minmax(0,1fr))">
     <div class="card kpi"><div class="l">Comunidades</div><div class="v">${act.length}</div><div class="s">${tot.n} pisos y locales</div></div>
-    <div class="card kpi"><div class="l">Saldo en bancos</div><div class="v">${eur(tot.saldo, 0)}</div><div class="s">Según los movimientos registrados</div></div>
-    <div class="card kpi"><div class="l">Pendiente de cobro</div><div class="v ${tot.pend > 0.1 ? 'neg' : ''}">${eur(tot.pend, 0)}</div><div class="s">${items.reduce((a, i) => a + i.morosos, 0)} propietarios con deuda</div></div>
+    <div class="card kpi"><div class="l">Pendiente de cobro</div><div class="v ${tot.pend > 0.1 ? 'neg' : ''}">${eur(tot.pend, 0)}</div><div class="s">${items.reduce((a, i) => a + i.morosos, 0)} propietarios con importes pendientes</div></div>
   </section>` : ''}
   ${items.length ? `<div class="grid-props" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${items.map(i => `<article class="card" style="padding:18px;display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="width:44px;height:44px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M16 9h3a1 1 0 0 1 1 1v11"/><path d="M8 7h1M11 7h1M8 11h1M11 11h1M8 15h1M11 15h1M3 21h18"/></svg></div>
       <div style="flex:1;min-width:0"><a href="#/finca/${i.c.id}" style="font:600 18px 'Space Grotesk',sans-serif;color:var(--ink);text-decoration:none">${esc(i.c.nombre)}</a><div class="small muted">${esc([i.c.localidad, i.vs.length + ' pisos y locales', i.c.cif ? 'CIF ' + i.c.cif : ''].filter(Boolean).join(' · '))}</div></div>
-      <span class="badge ${i.c.archivada ? 'neutral' : i.morosos ? 'bad' : 'ok'}">${i.c.archivada ? 'Archivada' : i.morosos ? i.morosos + (i.morosos === 1 ? ' moroso' : ' morosos') : 'Al día'}</span></div>
+      <span class="badge ${i.c.archivada ? 'neutral' : i.morosos ? 'bad' : 'ok'}">${i.c.archivada ? 'Archivada' : i.morosos ? i.morosos + (i.morosos === 1 ? ' con pendiente' : ' con pendiente') : 'Al día'}</span></div>
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)">
-      <div><div class="small muted">Cuotas/mes</div><b class="num">${eur(i.cuotaMes)}</b></div><div><div class="small muted">Saldo</div><b class="num">${eur(i.saldo, 0)}</b></div><div><div class="small muted">Pendiente</div><b class="num ${i.pend > 0.1 ? 'neg' : ''}">${eur(i.pend)}</b></div></div>
+      <div><div class="small muted">Cuotas/mes</div><b class="num">${eur(i.cuotaMes)}</b></div><div><div class="small muted">Gastos ${y}</div><b class="num">${eur(i.gastosAnio, 0)}</b></div><div><div class="small muted">Pendiente</div><b class="num ${i.pend > 0.1 ? 'neg' : ''}">${eur(i.pend)}</b></div></div>
     <div class="actions" style="justify-content:flex-end">${i.c.archivada ? `<button class="btn sm" data-recuperar="${i.c.id}">Recuperar</button><button class="btn sm danger" data-eliminar="${i.c.id}">Eliminar</button>` : `<a class="btn sm" href="#/finca/${i.c.id}">Abrir</a><button class="btn sm danger" data-baja="${i.c.id}">Dar de baja</button>`}</div>
   </article>`).join('')}</div>`
   : `<div class="card empty"><h2>${verArchivadas ? 'No hay comunidades archivadas' : 'Aún no hay comunidades'}</h2>${verArchivadas ? '' : `<p style="margin:0;max-width:540px">Crea una comunidad y ve añadiendo sus vecinos, o importa directamente tu Excel de contabilidad de cuotas.</p>
@@ -60,28 +59,37 @@ export function darDeBaja(c, done) {
 }
 
 export function formComunidad(c, done) {
-  const v = c || { periodicidad: 'mensual', idioma: 'ca', normativa: 'Codi civil de Catalunya', diaCobro: 10, saldoInicial: 0, cobrosDesde: new Date().toISOString().slice(0, 7) };
+  const v = c || { periodicidad: 'mensual', idioma: 'ca', normativa: 'Codi civil de Catalunya', diaCobro: 10, cobrosDesde: new Date().toISOString().slice(0, 7), secretario: 'El administrador' };
+  const car = v.caracteristicas || {};
+  const CAR = [['ascensor', 'Ascensor'], ['porteria', 'Portería / conserje'], ['garaje', 'Garaje'], ['trasteros', 'Trasteros'], ['piscina', 'Piscina'], ['jardin', 'Jardín / zonas comunes'], ['calefaccion', 'Calefacción central'], ['antena', 'Antena colectiva'], ['locales', 'Locales comerciales']];
+  const box = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))';
   modal({
     title: c ? 'Editar comunidad' : 'Nueva comunidad', wide: true,
     body: `<div class="fgrid">
-      ${field('Nombre', 'nombre', v.nombre, { required: true, span2: true, placeholder: 'Comunidad C/ Sant Llorenç, 19' })}
+      ${field('Nombre', 'nombre', v.nombre, { required: true, span2: true, placeholder: 'C/ Sant Llorenç, 19' })}
       ${field('Dirección', 'direccion', v.direccion)}${field('CP y localidad', 'localidad', v.localidad)}
-      ${field('CIF / NIF', 'cif', v.cif)}${field('IBAN de la comunidad', 'iban', v.iban)}
-      ${field('Presidente/a', 'presidente', v.presidente)}${field('Vicepresidente/a', 'vicepresidente', v.vicepresidente)}${field('Secretario/a', 'secretario', v.secretario, { placeholder: 'El administrador' })}
-      ${money('Presupuesto anual (€)', 'presupuesto', v.presupuesto)}
+      ${field('CIF / NIF', 'cif', v.cif)}${field('IBAN de la comunidad', 'iban', v.iban)}${field('Banco', 'banco', v.banco)}${field('Secretario/a', 'secretario', v.secretario)}
       ${select('Cuotas', 'periodicidad', v.periodicidad, [['mensual', 'Mensuales'], ['trimestral', 'Trimestrales']])}
       ${field('Las cuotas vencen el día', 'diaCobro', v.diaCobro, { inputmode: 'numeric' })}
-      ${field('Controlar cuotas desde', 'cobrosDesde', v.cobrosDesde, { type: 'month', hint: 'Los meses anteriores no cuentan como deuda' })}
+      ${field('Controlar cuotas desde', 'cobrosDesde', v.cobrosDesde, { type: 'month', hint: 'Los meses anteriores no cuentan como pendientes' })}
       ${money('Fondo de reserva (€)', 'fondoReserva', v.fondoReserva)}
-      ${money('Saldo del banco (€)', 'saldoInicial', v.saldoInicial, { hint: 'Saldo de la cuenta en la fecha de al lado' })}${field('Fecha del saldo', 'saldoFecha', v.saldoFecha, { type: 'date' })}
       ${select('Idioma de los escritos', 'idioma', v.idioma, [['ca', 'Català'], ['es', 'Castellano']])}
-      ${select('Normativa', 'normativa', v.normativa, ['Codi civil de Catalunya', 'Ley de Propiedad Horizontal'])}
-      ${textarea('Notas', 'notas', v.notas)}
-    </div>`,
+      ${select('Normativa', 'normativa', v.normativa, ['Codi civil de Catalunya', 'Ley de Propiedad Horizontal'])}</div>
+    <fieldset class="box" style="${box}"><legend>Presidencia</legend>
+      ${field('Presidente/a', 'presidente', v.presidente)}${field('Piso', 'presidentePiso', v.presidentePiso, { placeholder: '2º 1ª' })}${field('Teléfono', 'presidenteTel', v.presidenteTel, { type: 'tel' })}${field('Email', 'presidenteEmail', v.presidenteEmail, { type: 'email' })}${field('Mandato hasta', 'presidenteHasta', v.presidenteHasta, { type: 'date' })}</fieldset>
+    <fieldset class="box" style="${box}"><legend>Características especiales</legend>
+      ${CAR.map(([k, l]) => `<label class="check"><input type="checkbox" name="car_${k}" ${car[k] ? 'checked' : ''}> ${l}</label>`).join('')}
+      ${field('Plantas', 'car_plantas', car.plantas, { inputmode: 'numeric' })}${field('Año de construcción', 'car_anio', car.anio, { inputmode: 'numeric' })}
+      <label class="field" style="grid-column:1/-1">Otras características<textarea name="car_otras" rows="2" placeholder="Placas solares, accesibilidad, contador de agua general…">${esc(car.otras || '')}</textarea></label></fieldset>
+    <div class="fgrid">${textarea('Notas', 'notas', v.notas)}</div>`,
     onSubmit: async (f) => {
       const x = fd(f);
       if (!x.nombre.trim()) { toast('Falta el nombre'); return false; }
-      const obj = { ...v, ...x, nombre: x.nombre.trim(), presupuesto: num(x.presupuesto), fondoReserva: num(x.fondoReserva), saldoInicial: num(x.saldoInicial), diaCobro: Number(x.diaCobro) || 10 };
+      const caracteristicas = { plantas: x.car_plantas, anio: x.car_anio, otras: x.car_otras };
+      CAR.forEach(([k]) => { caracteristicas[k] = !!x['car_' + k]; });
+      Object.keys(x).filter(k => k.startsWith('car_')).forEach(k => delete x[k]);
+      const obj = { ...v, ...x, caracteristicas, nombre: x.nombre.trim(), fondoReserva: num(x.fondoReserva), diaCobro: Number(x.diaCobro) || 10 };
+      delete obj.vicepresidente;
       await db.put('f_comunidades', obj); toast(c ? 'Comunidad guardada' : 'Comunidad creada'); done && done(obj);
     },
   });
@@ -102,7 +110,7 @@ export async function importarDialogo(d, refresh) {
     <dt>Cobros de cuotas</dt><dd>${r.cobros.filter(c => c.concepto === 'cuota').length} (años ${r.anios.join(', ')})</dd>
     <dt>Derramas</dt><dd>${r.derramas.map(x => `${esc(x.concepto)} · ${eur(x.total)}`).join('<br>') || '—'}</dd>
     <dt>Gastos</dt><dd>${r.gastos.length} apuntes</dd>
-    <dt>Saldo inicial</dt><dd class="num">${r.comunidad.saldoInicial ? eur(r.comunidad.saldoInicial) + ' (' + esc(r.comunidad.saldoFecha || '') + ')' : '—'}</dd></dl>
+    <dt>Saldos del banco</dt><dd class="num">${(r.comunidad.saldosBanco || []).map(x => eur(x.importe) + ' a ' + esc(x.fecha.split('-').reverse().join('/'))).join('<br>') || '—'}</dd></dl>
     ${r.avisos.length ? `<div class="strip warn"><div><div class="l">Revisa después de importar</div>${r.avisos.map(a => `<div class="small">• ${esc(a)}</div>`).join('')}</div></div>` : ''}
     ${existe ? `<div class="strip bad"><div>Ya existe una comunidad llamada <b>${esc(existe.nombre)}</b>. Se sustituirá por los datos del Excel.</div></div>` : ''}
     <div class="small muted">Todo se puede corregir después a mano.</div>`,

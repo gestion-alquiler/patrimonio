@@ -220,13 +220,8 @@ export async function importarExcel(file) {
   const anios = hojasIng.map(anioDe);
   const comunidad = { nombre: titulo(nombreCom) || file.name.replace(/\.\w+$/, ''), direccion: titulo(nombreCom), periodicidad: 'mensual', diaCobro: 10, cobrosDesde: primerMes || `${anios[0]}-01`,
     saldoInicial: saldoInicial != null ? r2(saldoInicial) : 0, saldoFecha: saldoFecha || '', fondoReserva: fondo != null ? r2(fondo) : 0, idioma: 'ca', normativa: 'Codi civil de Catalunya',
-    notas: `Importada de ${file.name} el ${iso(new Date())}.` };
-  for (const { y, val } of saldosFin) {
-    if (saldoInicial == null) break;
-    const fin = `${y}-12-31`, desde = saldoFecha || '0000';
-    const calc = saldoInicial + cobros.filter(c => c.fecha > desde && c.fecha <= fin).reduce((a, c) => a + c.importe, 0) - gastos.filter(g => g.fecha > desde && g.fecha <= fin).reduce((a, g) => a + g.importe, 0);
-    if (Math.abs(calc - val) > 0.5) avisos.push(`Saldo a 31/12/${y}: en el Excel pone ${val.toFixed(2).replace('.', ',')} € y con los movimientos importados sale ${calc.toFixed(2).replace('.', ',')} €. La diferencia (${(val - calc).toFixed(2).replace('.', ',')} €) no está detallada en el Excel; puedes apuntarla como «Otro ingreso».`);
-  }
-  if (!saldoInicial) avisos.push('No he encontrado el saldo inicial del banco: indícalo en Datos de la comunidad');
+    notas: `Importada de ${file.name} el ${iso(new Date())}.`,
+    saldosBanco: [...(saldoInicial != null ? [{ fecha: saldoFecha || `${anios[0]}-01-01`, importe: r2(saldoInicial), origen: 'Excel' }] : []), ...saldosFin.filter(x => x.val).map(x => ({ fecha: `${x.y}-12-31`, importe: r2(x.val), origen: 'Excel' }))] };
+  if (!saldoInicial) avisos.push('No he encontrado el saldo del banco: anótalo con «Actualizar saldo» en la comunidad');
   return { comunidad, vecinos, cobros, derramas, gastos, avisos, anios, sumaCoef };
 }

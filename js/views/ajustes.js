@@ -23,7 +23,7 @@ export async function render(_, d) {
   </div>
   <div class="row">
     <section class="card pad stack grow1"><h2>Datos del propietario</h2><div class="small muted">Saldrán como remitente en las cartas.</div>
-      <form id="fprop" class="fgrid">${field('Nombre y apellidos', 'nombre', pr.nombre)}${field('DNI / NIF', 'dni', pr.dni)}${field('Dirección', 'direccion', pr.direccion, { span2: true })}${field('Teléfono', 'telefono', pr.telefono)}${field('Email', 'email', pr.email)}
+      <form id="fprop" class="fgrid">${field('Nombre y apellidos', 'nombre', pr.nombre)}${field('DNI / NIF', 'dni', pr.dni)}${field('Dirección', 'direccion', pr.direccion, { span2: true })}${field('Teléfono', 'telefono', pr.telefono)}${field('Email', 'email', pr.email)}${field('IBAN (para que te paguen)', 'iban', pr.iban, { span2: true })}
       <div class="span2"><button class="btn primary">Guardar datos</button></div></form></section>
     <section class="card pad stack grow1"><h2>Exportar a Excel (CSV)</h2>
       <div class="stack"><button class="btn" data-csv="propiedades" style="justify-content:space-between">Propiedades e inquilinos <span class="muted">CSV</span></button>

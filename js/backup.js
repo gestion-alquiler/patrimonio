@@ -93,7 +93,7 @@ export async function exportarCSV(tipo) {
   if (tipo === 'pagos') {
     rows = [['Fecha cobro', 'Propiedad', 'Inquilino', 'Año', 'Mes', 'Concepto', 'Importe', 'Forma de pago', 'Nota']];
     pagos.sort((a, b) => (a.fecha < b.fecha ? -1 : 1)).forEach(p => { const c = contratos.find(k => k.id === p.contratoId); const i = inqs.find(x => x.id === c?.inquilinoId);
-      rows.push([p.fecha, dir(p.propiedadId), i?.nombre || '', p.anio, MESES[p.mes - 1], p.concepto, dec(p.importe), p.forma, p.nota]); });
+      rows.push([p.fecha, dir(p.propiedadId), i?.nombre || '', p.anio, p.mes ? MESES[p.mes - 1] : 'Anual', p.concepto, dec(p.importe), p.forma, p.nota]); });
   } else if (tipo === 'gastos') {
     rows = [['Fecha', 'Propiedad', 'Categoría', 'Concepto', 'Proveedor', 'Importe', 'Estado', 'Repercutible']];
     gastos.sort((a, b) => (a.fecha < b.fecha ? -1 : 1)).forEach(g => rows.push([g.fecha, dir(g.propiedadId), g.categoria, g.concepto, g.proveedor, dec(g.importe), g.estado, g.repercutible ? 'Sí' : 'No']));

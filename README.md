@@ -36,6 +36,21 @@ App web para gestionar viviendas y locales en alquiler: propiedades, inquilinos,
 - **Solo en el ordenador:** en el móvil no aparecen las copias.
 - **Copia de una sola parte:** opción secundaria. Las copias antiguas también se pueden restaurar.
 
+Novedades de la versión 2.4:
+
+- Patrimonio: la basura es un pago anual (una sola casilla por año). Histórico con «Revisar»: ficha completa de cada inquilino anterior, con documentos y notas que se pueden seguir añadiendo.
+- Admon. Fincas: «Pendiente» en lugar de «moroso»; saldo según banco con su fecha; ficha del vecino en página propia con Guardar; cambio de propietario con histórico; agenda común de proveedores; presupuesto anual por partidas; presidencia con contacto y características especiales.
+
+Novedades de la versión 2.5:
+
+- Admon. Fincas: pestaña Juntas. Juntas ordinarias y extraordinarias con orden del día en castellano y català; convocatoria personalizada por vecino en su idioma (PDF, con aviso de importes pendientes, relación de propietarios sin derecho a voto y delegación de voto); anuncio para el tablón; control de envío y email preparado.
+
+Novedades de la versión 2.6:
+
+- Cartas y comunicados en las dos partes: carta libre o a partir de un modelo, a uno o varios destinatarios, cada uno en su idioma; los datos entre llaves ({propietario}, {importe_pendiente}…) se rellenan solos. Quedan guardadas con fecha y envío en la ficha del vecino o del inquilino (también de los anteriores).
+- Plantillas (menú lateral): modelos de carta editables, de serie y propios, y todos los textos de las convocatorias en castellano y català, con «Restaurar el texto original».
+- En la ventana de impresión se puede retocar cualquier texto antes de imprimir.
+
 Todo se puede editar y borrar.
 
 ## Datos de prueba (temporal)

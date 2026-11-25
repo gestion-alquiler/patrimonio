@@ -1,7 +1,9 @@
 // Datos de prueba inventados para Patrimonio y Admon. Fincas.
 // Todo lo que se crea aquí lleva prueba:true, así se puede borrar sin tocar los datos reales.
 import { db, STORES, STORES_FIN } from './db.js';
-import { hoyISO } from './ui.js';
+import { hoyISO, fecha } from './ui.js';
+import { ordenPorDefecto } from './fincas/docs.js';
+import { CARTAS_BASE } from './plantillas.js';
 
 // Generador pseudoaleatorio con semilla: siempre salen los mismos datos
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -83,15 +85,15 @@ export async function cargarPruebaPatrimonio() {
   }
   // Contratos: [propiedad, renta, inicio, basura, mesesQueDebe, pasado]
   const plan = [
-    { p: 0, renta: 780, ini: [Y - 3, 9, 1], basura: 'inquilino', bimp: 32, debe: [], antes: { renta: 720, ini: [Y - 6, 9, 1], fin: [Y - 3, 8, 31], motivo: 'Fin de contrato' } },
+    { p: 0, renta: 780, ini: [Y - 3, 9, 1], basura: 'inquilino', bimp: 125, debe: [], antes: { renta: 720, ini: [Y - 6, 9, 1], fin: [Y - 3, 8, 31], motivo: 'Fin de contrato' } },
     { p: 1, renta: 750, ini: [Y - 1, 2, 1], basura: 'propietario', debe: [M - 1, M] },
-    { p: 2, renta: 690, ini: [Y - 2, 6, 1], basura: 'inquilino', bimp: 28, debe: [] },
-    { p: 3, renta: 1150, ini: [Y - 4, 1, 1], basura: 'inquilino', bimp: 45, debe: [M] },
+    { p: 2, renta: 690, ini: [Y - 2, 6, 1], basura: 'inquilino', bimp: 110, debe: [] },
+    { p: 3, renta: 1150, ini: [Y - 4, 1, 1], basura: 'inquilino', bimp: 210, debe: [M] },
     { p: 4, renta: 980, ini: [Y, 3, 1], basura: 'propietario', debe: [], antes: { renta: 900, ini: [Y - 3, 3, 1], fin: [Y, 1, 31], motivo: 'Traslado por trabajo' } },
-    { p: 5, renta: 640, ini: [Y - 1, 10, 1], basura: 'inquilino', bimp: 25, debe: [M - 3, M - 2, M - 1, M] },
+    { p: 5, renta: 640, ini: [Y - 1, 10, 1], basura: 'inquilino', bimp: 95, debe: [M - 3, M - 2, M - 1, M] },
     { p: 6, renta: 1050, ini: [Y - 2, 4, 15], basura: 'propietario', debe: [] },
     { p: 8, renta: 85, ini: [Y - 5, 1, 1], basura: 'no', debe: [] },
-    { p: 9, renta: 620, ini: [Y - 1, 1, 1], basura: 'inquilino', bimp: 30, debe: [], fin: [Y, 4, 30], motivo: 'Cierre del negocio' },
+    { p: 9, renta: 620, ini: [Y - 1, 1, 1], basura: 'inquilino', bimp: 140, debe: [], fin: [Y, 4, 30], motivo: 'Cierre del negocio' },
   ];
   let n = 0;
   const desde = `${Y - 1}-01`;
@@ -100,14 +102,14 @@ export async function cargarPruebaPatrimonio() {
     const crea = async (renta, ini, finReal, estado, deuda, motivo) => {
       const nombre = NOMBRES[n++ % NOMBRES.length];
       const inq = await put('inquilinos', { nombre, dni: `${40000000 + n * 7311}${'TRWAGMYFPDXBNJZSQVHLCKE'[n % 23]}`, telefono: '6' + String(10000000 + n * 1234567).slice(0, 8), email: nombre.split(' ')[0].toLowerCase() + '@example.com', idioma: n % 3 ? 'ca' : 'es', iban: `ES76 2100 0000 ${String(1000 + n).padStart(4, '0')} 0000 ${String(n * 37).padStart(4, '0')}` });
-      const inicio = iso(...ini), finContrato = iso(ini[0] + (k.p === 3 ? 10 : ini[0] + 5 <= Y ? Y - ini[0] + 3 : 5), ini[1], ini[2] === 1 ? 1 : ini[2]);
+      const inicio = iso(...ini), finContrato = iso(ini[0] + (k.p === 3 ? 10 : estado === 'activo' && ini[0] + 5 <= Y ? Y - ini[0] + 3 : 5), ini[1], ini[2]);
       const hist = [];
       // Subidas anuales del IPC/IRAV
       let rr = renta; const anios = Math.max(0, (finReal ? Number(finReal.slice(0, 4)) : Y) - ini[0]);
       if (estado === 'activo') { rr = renta; for (let a = anios; a >= 1; a--) { if (ym(ini[0] + a, ini[1]) <= ym(Y, M)) hist.unshift({ desde: ym(ini[0] + a, ini[1]), importe: rr }); rr = r2(rr / 1.028); } hist.unshift({ desde: ym(...ini), importe: rr }); }
       if (hist.length) renta = hist[hist.length - 1].importe;
       const c = await put('contratos', { propiedadId: p.id, inquilinoId: inq.id, inicio, fin: finContrato, renta, diaPago: 5, actualizacion: ini[0] * 100 + ini[1] < 202305 ? 'IPC' : 'IRAV', mesActualizacion: ini[1],
-        fianza: p.tipo === 'Local' ? renta * 2 : renta, fianzaDeposito: 'INCASÒL', basuraPaga: k.basura, basuraImporte: k.bimp || 0, estado, cobrosDesde: desde > ym(...ini) ? desde : ym(...ini),
+        fianza: p.tipo === 'Local' ? renta * 2 : renta, fianzaDeposito: 'INCASÒL', basuraPaga: k.basura, basuraImporte: k.bimp || 0, estado, cobrosDesde: estado === 'finalizado' || desde <= ym(...ini) ? ym(...ini) : desde,
         historialRenta: hist.length > 1 ? hist : undefined, avalista: n % 4 === 0 ? 'Avalista de prueba' : '',
         ...(estado === 'finalizado' ? { fechaSalida: finReal, motivoSalida: motivo, fianzaDevuelta: renta - (n % 2 ? 0 : 150), descuentos: n % 2 ? '' : 'Pintura habitación' } : {}) });
       await doc(pdfSimple('Contrato de arrendamiento', [p.direccion, 'Arrendatario: ' + nombre, 'Renta: ' + renta + ' euros/mes', 'Inicio: ' + inicio]), { propiedadId: p.id, contratoId: c.id, tipo: 'contrato', nombre: 'Contrato ' + nombre, fecha: inicio });
@@ -116,7 +118,7 @@ export async function cargarPruebaPatrimonio() {
       if (n % 3) await doc(pdfSimple('Nominas', ['Tres ultimas nominas de ' + nombre]), { propiedadId: p.id, contratoId: c.id, tipo: 'nominas', nombre: 'Nóminas', fecha: inicio });
       await doc(pdfSimple('Deposito de fianza INCASOL', ['Fianza: ' + (p.tipo === 'Local' ? renta * 2 : renta) + ' euros']), { propiedadId: p.id, contratoId: c.id, tipo: 'fianza', nombre: 'Resguardo depósito fianza', fecha: inicio });
       // Cobros
-      const [cy, cm] = (desde > ym(...ini) ? desde : ym(...ini)).split('-').map(Number);
+      const [cy, cm] = (estado === 'finalizado' || desde <= ym(...ini) ? ym(...ini) : desde).split('-').map(Number);
       let y = cy, m = cm;
       const finY = finReal ? Number(finReal.slice(0, 4)) : Y, finM = finReal ? Number(finReal.slice(5, 7)) : M;
       while (y < finY || (y === finY && m <= finM)) {
@@ -127,14 +129,25 @@ export async function cargarPruebaPatrimonio() {
           const imp = (hist.filter(h => h.desde <= k2).pop() || { importe: renta }).importe;
           const dia = Math.min(28, 1 + Math.floor(r() * 6));
           await put('pagos', { contratoId: c.id, propiedadId: p.id, anio: y, mes: m, concepto: 'renta', importe: imp, fecha: iso(y, m, dia), forma: n % 3 === 0 ? 'Bizum' : 'Transferencia' });
-          if (k.basura === 'inquilino' && k.bimp) await put('pagos', { contratoId: c.id, propiedadId: p.id, anio: y, mes: m, concepto: 'basura', importe: k.bimp, fecha: iso(y, m, dia), forma: 'Transferencia' });
         }
         m++; if (m > 12) { m = 1; y++; }
+      }
+      // Basura: un pago al año (normalmente en primavera); el moroso de la C/ Indústria no pagó la del año pasado
+      if (k.basura === 'inquilino' && k.bimp) {
+        for (let yb = cy; yb <= finY; yb++) {
+          if (k.p === 5 && estado === 'activo') continue;
+          const mb = yb === cy ? Math.max(cm, 4) : 4;
+          if (yb === Y && mb > M) continue;
+          if (finReal && `${yb}-${String(mb).padStart(2, '0')}` > finReal.slice(0, 7)) continue;
+          await put('pagos', { contratoId: c.id, propiedadId: p.id, anio: yb, mes: 0, concepto: 'basura', importe: k.bimp, fecha: iso(yb, mb, 18), forma: 'Transferencia' });
+        }
       }
       return c;
     };
     if (k.antes) await crea(k.antes.renta, k.antes.ini, iso(...k.antes.fin), 'finalizado', [], k.antes.motivo);
-    await crea(k.renta, k.ini, k.fin ? iso(...k.fin) : null, k.fin ? 'finalizado' : 'activo', k.debe.filter(x => x >= 1), k.motivo);
+    const cAct = await crea(k.renta, k.ini, k.fin ? iso(...k.fin) : null, k.fin ? 'finalizado' : 'activo', k.debe.filter(x => x >= 1), k.motivo);
+    if (k.p === 5) { const m = CARTAS_BASE.pat.find(x => x.id === 'p-reclamacion'); const f = iso(Y, M, Math.max(1, D - 6));
+      await put('cartas', { propiedadId: p.id, fecha: f, idiomaModo: 'cada', destinatarios: [cAct.id], asunto: m.asunto, cuerpo: m.cuerpo, envios: { [cAct.id]: { fecha: f, via: 'Email' } } }); }
   }
   // Gastos de los dos últimos años
   for (const [i, p] of ids.entries()) {
@@ -177,10 +190,23 @@ export async function cargarPruebaFincas() {
       pisos: ['Baixos', '1º', '2º', '3º', '4º', '5º'], coefs: [18, 16.5, 16.5, 16.5, 16.5, 16], morosos: {}, derrama: false, saldo: 1630.1, fondo: 420, ascensor: false },
   ];
   let np = 0;
-  for (const cd of coms) {
+  // Agenda de proveedores (común)
+  const PROV = {};
+  const datosProv = { 'Endesa': ['Electricidad / luz', '800 760 909'], 'Aigües de Sabadell': ['Agua', '937 289 300'], 'Neteges Vallès SL': ['Limpieza', '937 112 233'], 'Ascensores Orona': ['Ascensor', '900 100 456'],
+    'Mapfre Comunidades': ['Seguro', '918 365 365'], 'Administración de fincas': ['Administración', ''], 'Desembussos 24h': ['Fontanería', '600 112 233'], 'Electricitat Pons': ['Electricista', '937 445 566'],
+    'Serralleria Ràpida': ['Cerrajería', '650 778 899'], 'Extintors Vallès': ['Extintores / PCI', '937 223 344'], 'Bastides Vallès': ['Obras / construcción', '937 990 011'], 'Construccions Martí': ['Obras / construcción', '937 880 022'], 'Arquitectes Associats': ['Arquitecto / técnico', '932 001 122'] };
+  const provId = async (nombre) => { if (!PROV[nombre]) { const [servicio, telefono] = datosProv[nombre] || ['Otros', ''];
+    PROV[nombre] = (await put('f_proveedores', { nombre, servicio, telefono, email: telefono ? nombre.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') + '@example.com' : '', nif: telefono ? 'B' + (60000000 + Object.keys(PROV).length * 7771) : '' })).id; } return PROV[nombre]; };
+  const presidencia = [['1º 1ª', '611 223 344', 'rosa.ferrer@example.com'], ['Àtic', '622 334 455', 'albert.riera@example.com'], ['3º', '633 445 566', 'jaume.costa@example.com']];
+  const caract = [{ ascensor: true, trasteros: true, plantas: '4', anio: '1978', otras: 'Contador de agua general. Acceso adaptado en el portal.' }, { ascensor: true, garaje: true, locales: true, antena: true, plantas: '5', anio: '1992', otras: 'Garaje con puerta automática (mantenimiento anual).' }, { jardin: true, calefaccion: false, plantas: '6', anio: '1969', otras: 'Patio interior comunitario.' }];
+  for (const [ic, cd] of coms.entries()) {
     const div = cd.periodicidad === 'trimestral' ? 4 : 12;
-    const com = await put('f_comunidades', { nombre: cd.nombre, direccion: cd.direccion, localidad: cd.localidad, cif: cd.cif, iban: cd.iban, banco: '', presidente: cd.presidente, vicepresidente: '', secretario: 'El administrador',
-      presupuesto: cd.presupuesto, periodicidad: cd.periodicidad, diaCobro: 10, fondoReserva: cd.fondo, saldoInicial: cd.saldo, saldoFecha: `${Y - 2}-12-31`, cobrosDesde: `${Y - 1}-01`, idioma: np % 2 ? 'es' : 'ca', normativa: 'Codi civil de Catalunya', notas: 'Comunidad de prueba con datos inventados.' });
+    const com = await put('f_comunidades', { nombre: cd.nombre, direccion: cd.direccion, localidad: cd.localidad, cif: cd.cif, iban: cd.iban, banco: '', presidente: cd.presidente, presidentePiso: presidencia[ic][0], presidenteTel: presidencia[ic][1], presidenteEmail: presidencia[ic][2], presidenteHasta: iso(Y + 1, 3, 31), secretario: 'El administrador', caracteristicas: caract[ic],
+      presupuesto: cd.presupuesto, periodicidad: cd.periodicidad, diaCobro: 10, fondoReserva: cd.fondo, saldosBanco: [{ fecha: `${Y - 1}-12-31`, importe: cd.saldo, origen: 'Manual', nota: 'Extracto de fin de año' }, { fecha: iso(Y, M, Math.max(1, D - 4)), importe: r2(cd.saldo + 600 + r() * 900), origen: 'Manual' }], cobrosDesde: `${Y - 1}-01`, idioma: np % 2 ? 'es' : 'ca', normativa: 'Codi civil de Catalunya', notas: 'Comunidad de prueba con datos inventados.' });
+    const partidasDe = (k) => { const n = cd.pisos.length; const l = [['Electricidad', 'coef', 12 * (cd.ascensor ? 105 : 45)], ['Limpieza', 'iguales', 12 * (n > 10 ? 260 : 150)], ...(cd.ascensor ? [['Ascensor', 'coef', 4 * 345.8]] : []), ['Agua', 'coef', 4 * 35], ['Seguro', 'coef', n * 95], ['Honorarios de administración', 'iguales', 4 * n * 18], ['Mantenimiento y reparaciones', 'coef', 500]];
+      const suma = l.reduce((a, x) => a + x[2], 0); if (cd.presupuesto > suma) l.push(['Fondo de reserva', 'coef', cd.presupuesto - suma]);
+      return l.map(([partida, grupo, imp]) => ({ partida, grupo, importe: r2(imp * k) })); };
+    await db.put('f_comunidades', { ...com, presupuestos: { [Y - 1]: partidasDe(0.95), [Y]: partidasDe(1) } });
     const vs = [];
     for (const [i, piso] of cd.pisos.entries()) {
       const nombre = PROPIETARIOS[np++ % PROPIETARIOS.length];
@@ -189,6 +215,10 @@ export async function cargarPruebaFincas() {
         email: nombre.split(' ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') + np + '@example.com', idioma: np % 3 ? 'ca' : 'es', avisosEmail: np % 4 !== 0, formaPago: i % 3 === 2 ? 'Transferencia' : 'Domiciliado',
         iban: `ES91 2100 ${String(1000 + np).padStart(4, '0')} 0000 0000 ${String(np * 53).padStart(4, '0')}`, titular: nombre, coef: cd.coefs[i], cuota: nueva, cuotaHistorial: [{ desde: `${Y - 1}-01`, importe: base }, { desde: `${Y}-01`, importe: nueva }],
         ocupante: i % 4 === 1 ? 'Inquilino de prueba' : '', saldoAnterior: 0, obs: i === 0 && piso.startsWith('Local') ? 'Local comercial: no usa ascensor.' : '' });
+      if (ic === 0 && i === 5) { // Cambio de propietario este año
+        Object.assign(v, { propietarioDesde: iso(Y, 3, 15), historialPropietarios: [{ propietario: 'Pere Grau Solà', dni: '38123456K', telefono: '644 556 677', email: 'pere.grau@example.com', iban: 'ES91 2100 9999 0000 0000 1234', desde: iso(Y - 9, 6, 1), hasta: iso(Y, 3, 15), pendiente: 0, detallePendiente: '', nota: 'Venta ante la notaria de Sabadell. Certificado de deudas emitido el ' + fecha(iso(Y, 3, 1)) + ' (sin deudas).' }], propietariosAnteriores: ['Pere Grau Solà'] });
+        await db.put('f_vecinos', v);
+      }
       vs.push(v);
     }
     // Cuotas cobradas
@@ -208,18 +238,31 @@ export async function cargarPruebaFincas() {
     const prov = { llum: 'Endesa', aigua: 'Aigües de Sabadell', neteja: 'Neteges Vallès SL', asc: 'Ascensores Orona', seg: 'Mapfre Comunidades', admin: 'Administración de fincas' };
     for (const y of [Y - 1, Y]) for (let m = 1; m <= 12; m++) {
       if (y === Y && m > M) break;
-      const g = (dd, concepto, proveedor, importe, grupo = 'coef') => { const f = iso(y, m, dd); if (f > hoy) return null; return put('f_gastos', { comunidadId: com.id, fecha: f, concepto, proveedor, importe: r2(importe), grupo, estado: 'pagado' }); };
+      const g = async (dd, concepto, proveedor, importe, grupo = 'coef', partida = '') => { const f = iso(y, m, dd); if (f > hoy) return null; return put('f_gastos', { comunidadId: com.id, fecha: f, concepto, proveedor, proveedorId: await provId(proveedor), partida, importe: r2(importe), grupo, estado: 'pagado' }); };
       const MES = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'][m - 1];
-      await g(4, `Llum escala ${MES}`, prov.llum, (cd.ascensor ? 85 : 32) + r() * 25);
-      await g(10, `Neteja escala ${MES}`, prov.neteja, cd.pisos.length > 10 ? 260 : 150, 'iguales');
-      if (cd.ascensor && m % 3 === 1) await g(12, `Manteniment ascensor ${Math.ceil(m / 3)}T`, prov.asc, 345.8);
-      if (m % 3 === 2) await g(15, `Aigua comunitària ${Math.ceil(m / 3)}T`, prov.aigua, 28 + r() * 12);
-      if (m % 3 === 0) await g(28, `Honoraris administració ${Math.ceil(m / 3)}T`, prov.admin, cd.pisos.length * 18, 'iguales');
-      if (m === 6) await g(3, `Assegurança multirisc ${y}`, prov.seg, cd.pisos.length * 95);
+      await g(4, `Llum escala ${MES}`, prov.llum, (cd.ascensor ? 85 : 32) + r() * 25, 'coef', 'Electricidad');
+      await g(10, `Neteja escala ${MES}`, prov.neteja, cd.pisos.length > 10 ? 260 : 150, 'iguales', 'Limpieza');
+      if (cd.ascensor && m % 3 === 1) await g(12, `Manteniment ascensor ${Math.ceil(m / 3)}T`, prov.asc, 345.8, 'coef', 'Ascensor');
+      if (m % 3 === 2) await g(15, `Aigua comunitària ${Math.ceil(m / 3)}T`, prov.aigua, 28 + r() * 12, 'coef', 'Agua');
+      if (m % 3 === 0) await g(28, `Honoraris administració ${Math.ceil(m / 3)}T`, prov.admin, cd.pisos.length * 18, 'iguales', 'Honorarios de administración');
+      if (m === 6) await g(3, `Assegurança multirisc ${y}`, prov.seg, cd.pisos.length * 95, 'coef', 'Seguro');
     }
     const extra = [[Y - 1, 4, 'Desembussament baixant', 'Desembussos 24h', 165], [Y - 1, 11, 'Canvi bombetes i fluorescents', 'Electricitat Pons', 92.4], [Y, Math.max(1, M - 3), 'Reparació porta d\'entrada', 'Serralleria Ràpida', 238.5]];
-    for (const [y, m, c, p, imp] of extra) await put('f_gastos', { comunidadId: com.id, fecha: iso(y, m, 14), concepto: c, proveedor: p, importe: imp, grupo: 'coef', estado: 'pagado' });
-    await put('f_gastos', { comunidadId: com.id, fecha: iso(Y, M, Math.min(28, D + 5)), concepto: 'Revisió extintors', proveedor: 'Extintors Vallès', importe: 96.8, grupo: 'coef', estado: 'pendiente' });
+    for (const [y, m, c, p, imp] of extra) await put('f_gastos', { comunidadId: com.id, fecha: iso(y, m, 14), concepto: c, proveedor: p, proveedorId: await provId(p), partida: 'Mantenimiento y reparaciones', importe: imp, grupo: 'coef', estado: 'pagado' });
+    await put('f_gastos', { comunidadId: com.id, fecha: iso(Y, M, Math.min(28, D + 5)), concepto: 'Revisió extintors', proveedor: 'Extintors Vallès', proveedorId: await provId('Extintors Vallès'), partida: 'Mantenimiento y reparaciones', importe: 96.8, grupo: 'coef', estado: 'pendiente' });
+    // Cartas: una reclamación en Montserrat y un aviso general en la Rambla
+    if (ic === 0) { const m = CARTAS_BASE.fin.find(x => x.id === 'f-reclamacion'); const f = iso(Y, M, Math.max(1, D - 10));
+      await put('f_cartas', { comunidadId: com.id, fecha: f, idiomaModo: 'cada', destinatarios: [vs[4].id], asunto: m.asunto, cuerpo: m.cuerpo, envios: { [vs[4].id]: { fecha: f, via: 'Entregada' } } }); }
+    if (ic === 1) { const m = CARTAS_BASE.fin.find(x => x.id === 'f-aviso');
+      await put('f_cartas', { comunidadId: com.id, fecha: iso(Y, M, Math.max(1, D - 3)), idiomaModo: 'cada', destinatarios: vs.map(v => v.id),
+        asunto: { es: 'Revisión anual del ascensor', ca: "Revisió anual de l'ascensor" },
+        cuerpo: { es: '<p>Estimados vecinos:</p><p>Les informamos de que el próximo jueves, de 9 a 13 horas, se realizará la <b>revisión anual del ascensor</b>. Durante ese tiempo el ascensor no estará disponible.</p><p>Disculpen las molestias.</p><p>Atentamente,</p>',
+          ca: "<p>Benvolguts veïns:</p><p>Us informem que el proper dijous, de 9 a 13 hores, es farà la <b>revisió anual de l'ascensor</b>. Durant aquest temps l'ascensor no estarà disponible.</p><p>Disculpeu les molèsties.</p><p>Atentament,</p>" }, envios: {} }); }
+    // Juntas: la ordinaria del año que viene ya convocada y, en Montserrat, la extraordinaria de la fachada ya celebrada
+    const fj = new Date(Y, M - 1, D + 16); const fjIso = iso(fj.getFullYear(), fj.getMonth() + 1, fj.getDate());
+    await put('f_juntas', { comunidadId: com.id, tipo: 'ordinaria', fecha: fjIso, hora: '19:00', hora2: '', lugar: ic === 1 ? 'el local social de la comunidad (planta baja)' : 'el vestíbulo de la finca', fechaEmision: hoy, puntos: ordenPorDefecto('ordinaria', Y + 1), nota: { es: '', ca: '' } });
+    if (cd.derrama) await put('f_juntas', { comunidadId: com.id, tipo: 'extraordinaria', fecha: iso(Y, Math.max(1, M - 6), 20), hora: '19:30', hora2: '', lugar: 'el vestíbulo de la finca', fechaEmision: iso(Y, Math.max(1, M - 6), 5),
+      puntos: [{ es: 'Aprobación, si procede, del presupuesto de rehabilitación de la fachada y de la derrama correspondiente.', ca: "Aprovació, si escau, del pressupost de rehabilitació de la façana i de la derrama corresponent." }, { es: 'Forma de pago de la derrama.', ca: 'Forma de pagament de la derrama.' }], envios: {} });
     // Derrama de obras en tres plazos
     if (cd.derrama) {
       const m0 = Math.max(1, M - 5);
@@ -235,7 +278,7 @@ export async function cargarPruebaFincas() {
         }
       }
       const pagos = [[0, 'Bastida · primer pagament', 'Bastides Vallès', 2100], [1, 'Bastida · segon pagament', 'Bastides Vallès', 2100], [1, 'Reparació de façana · certificació 1', 'Construccions Martí', 4450], [2, 'Direcció d\'obra', 'Arquitectes Associats', 650]];
-      for (const [k, c, p, imp] of pagos) { const [py, pm] = der.plazos[k].mes.split('-').map(Number); const f = iso(py, pm, 22); if (f <= hoy) await put('f_gastos', { comunidadId: com.id, fecha: f, concepto: c, proveedor: p, importe: imp, grupo: 'derrama', derramaId: der.id, estado: 'pagado' }); }
+      for (const [k, c, p, imp] of pagos) { const [py, pm] = der.plazos[k].mes.split('-').map(Number); const f = iso(py, pm, 22); if (f <= hoy) await put('f_gastos', { comunidadId: com.id, fecha: f, concepto: c, proveedor: p, proveedorId: await provId(p), importe: imp, grupo: 'derrama', derramaId: der.id, estado: 'pagado' }); }
     }
   }
 }
