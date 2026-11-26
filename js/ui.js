@@ -6,7 +6,7 @@ export function eur(n, dec = 2) {
   const v = Number(n) || 0;
   const neg = v < 0;
   const [i, d] = Math.abs(v).toFixed(dec).split('.');
-  return (neg ? '−' : '') + miles(i) + (dec ? ',' + d : '') + ' €';
+  return (neg ? '−' : '') + miles(i) + (dec ? ',' + d : '') + '\u00A0€';
 }
 export const num = (s) => {
   if (typeof s === 'number') return s;

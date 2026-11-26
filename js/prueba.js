@@ -299,6 +299,8 @@ export async function hayPrueba() {
   return a.some(x => x.prueba) || b.some(x => x.prueba);
 }
 
+export const modoPrueba = () => /[?&]prueba\b/.test(location.search);
+
 export async function borrarPrueba() {
   let n = 0;
   // Movimientos del extracto de prueba y lo que se creó al conciliarlos

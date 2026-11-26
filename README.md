@@ -62,9 +62,9 @@ Novedades de la versión 3 (escritorio completo):
 
 Todo se puede editar y borrar.
 
-## Datos de prueba (temporal)
+## Datos de prueba
 
-En Ajustes de cualquiera de las dos partes, «Cargar datos de prueba» rellena la app con 10 propiedades y 3 comunidades inventadas. «Borrar datos de prueba» quita solo lo inventado. Este bloque se quitará antes de empezar con los datos reales.
+Ya no se ofrecen en la app. Solo aparecen añadiendo `?prueba` a la dirección (para las pruebas internas). Si quedaran datos de prueba, en Ajustes sale el botón para borrarlos.
 
 ## Dónde se guardan los datos
 

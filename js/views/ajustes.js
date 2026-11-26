@@ -37,7 +37,6 @@ export async function render(_, d) {
     </section>
   </div>
   ${await htmlPrueba()}
-  <section class="card pad small muted">Tus datos se guardan en este navegador y dispositivo. Próximamente se sincronizarán con tu Google Drive para usarlos a la vez en el móvil y el ordenador. Mientras tanto, usa las copias .zip.</section>
   </div>`;
 }
 

@@ -1,9 +1,10 @@
 // Bloque «Datos de prueba» en los Ajustes de las dos partes (se quitará cuando empiecen los datos reales)
 import { esc, toast, confirmar } from './ui.js';
-import { cargarPrueba, borrarPrueba, hayPrueba } from './prueba.js';
+import { cargarPrueba, borrarPrueba, hayPrueba, modoPrueba } from './prueba.js';
 
 export async function htmlPrueba() {
   const hay = await hayPrueba();
+  if (!hay && !modoPrueba()) return '';
   return `<section class="card pad stack" style="border-style:dashed"><div class="head" style="align-items:center"><div><h2>Datos de prueba</h2>
     <div class="small muted">Rellena toda la aplicación con datos inventados para probarla: 10 propiedades con inquilinos, cobros, gastos y documentos, y 3 comunidades con vecinos, cuotas, gastos y una derrama.</div></div>
     <div class="actions">${hay ? '<button class="btn danger" data-prueba="borrar">Borrar datos de prueba</button>' : '<button class="btn primary" data-prueba="cargar">Cargar datos de prueba</button>'}</div></div>

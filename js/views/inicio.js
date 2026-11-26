@@ -61,7 +61,7 @@ export async function render(_, d) {
       </tbody></table></div></section>
   </div>
   <section class="card pad stack"><h2>Últimos gastos</h2>
-    <div class="kpis">${ultGastos.map(g => { const p = d.props.find(x => x.id === g.propiedadId); return `<a href="#/propiedad/${g.propiedadId}/gastos" style="text-decoration:none;color:inherit;padding:14px;border:1px solid var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:6px">
-      <div style="display:flex;justify-content:space-between;gap:8px"><span class="badge neutral">${esc(g.categoria)}</span><b class="num">${eur(g.importe)}</b></div><b>${esc(g.concepto)}</b><span class="small muted">${esc(p?.direccion || '')} · ${fecha(g.fecha)}</span></a>`; }).join('') || '<div class="muted">Sin gastos registrados.</div>'}</div></section>
+    <div class="kpis ultgastos">${ultGastos.map(g => { const p = d.props.find(x => x.id === g.propiedadId); return `<a href="#/propiedad/${g.propiedadId}/gastos" style="text-decoration:none;color:inherit;padding:14px;border:1px solid var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 8px"><span class="badge neutral">${esc(g.categoria)}</span><b class="num">${eur(g.importe)}</b></div><b>${esc(g.concepto)}</b><span class="small muted">${esc(p?.direccion || '')} · ${fecha(g.fecha)}</span></a>`; }).join('') || '<div class="muted">Sin gastos registrados.</div>'}</div></section>
   </div>`;
 }

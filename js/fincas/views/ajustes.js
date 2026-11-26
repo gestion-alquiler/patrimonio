@@ -32,7 +32,6 @@ export async function render(_, d) {
       <div class="actions"><button class="btn danger" data-a="borrarTodo">Borrar todos los datos de Admon. Fincas</button></div></section>
   </div>
   ${await htmlPrueba()}
-  <section class="card pad small muted">Tus datos se guardan en este navegador y dispositivo. Próximamente se sincronizarán con tu Google Drive. Mientras tanto, usa las copias .zip.</section>
   </div>`;
 }
 
