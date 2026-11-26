@@ -60,7 +60,8 @@ export function darDeBaja(c, done) {
     onSubmit: async (f) => { if (fd(f).modo === 'eliminar') { await borrarComunidad(c.id); toast('Comunidad eliminada'); } else { await db.put('f_comunidades', { ...c, archivada: true }); toast('Comunidad archivada'); } location.hash = '#/fincas'; done(); } });
 }
 
-export function formComunidad(c, done) {
+export async function formComunidad(c, done) {
+  const vecs = c ? (await db.by('f_vecinos', 'comunidadId', c.id)).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)) : [];
   const v = c || { periodicidad: 'mensual', idioma: 'ca', normativa: 'Codi civil de Catalunya', diaCobro: 10, cobrosDesde: new Date().toISOString().slice(0, 7), secretario: 'El administrador' };
   const car = v.caracteristicas || {};
   const CAR = [['ascensor', 'Ascensor'], ['porteria', 'Portería / conserje'], ['garaje', 'Garaje'], ['trasteros', 'Trasteros'], ['piscina', 'Piscina'], ['jardin', 'Jardín / zonas comunes'], ['calefaccion', 'Calefacción central'], ['antena', 'Antena colectiva'], ['locales', 'Locales comerciales']];
@@ -78,6 +79,7 @@ export function formComunidad(c, done) {
       ${select('Idioma de los escritos', 'idioma', v.idioma, [['ca', 'Català'], ['es', 'Castellano']])}
       ${select('Normativa', 'normativa', v.normativa, ['Codi civil de Catalunya', 'Ley de Propiedad Horizontal'])}</div>
     <fieldset class="box" style="${box}"><legend>Presidencia</legend>
+      ${vecs.length ? `<label class="field" style="grid-column:1/-1">Vecino que es presidente/a<select name="presidenteVecinoId" id="presVec"><option value="">— Otra persona o sin elegir —</option>${vecs.map(x => `<option value="${x.id}" ${v.presidenteVecinoId === x.id ? 'selected' : ''}>${esc(x.piso)} · ${esc(x.propietario || '')}</option>`).join('')}</select><span class="hint">Al elegirlo se copian aquí su nombre, piso, teléfono y email. No cambian solos: si cambia el presidente, elige otro vecino.</span></label>` : ''}
       ${field('Presidente/a', 'presidente', v.presidente)}${field('Piso', 'presidentePiso', v.presidentePiso, { placeholder: '2º 1ª' })}${field('Teléfono', 'presidenteTel', v.presidenteTel, { type: 'tel' })}${field('Email', 'presidenteEmail', v.presidenteEmail, { type: 'email' })}${field('Mandato hasta', 'presidenteHasta', v.presidenteHasta, { type: 'date' })}</fieldset>
     <fieldset class="box" style="${box}"><legend>Características especiales</legend>
       ${CAR.map(([k, l]) => `<label class="check"><input type="checkbox" name="car_${k}" ${car[k] ? 'checked' : ''}> ${l}</label>`).join('')}
@@ -90,11 +92,18 @@ export function formComunidad(c, done) {
       const caracteristicas = { plantas: x.car_plantas, anio: x.car_anio, otras: x.car_otras };
       CAR.forEach(([k]) => { caracteristicas[k] = !!x['car_' + k]; });
       Object.keys(x).filter(k => k.startsWith('car_')).forEach(k => delete x[k]);
+      if (x.presidenteVecinoId === undefined) delete x.presidenteVecinoId;
       const obj = { ...v, ...x, caracteristicas, nombre: x.nombre.trim(), fondoReserva: num(x.fondoReserva), diaCobro: Number(x.diaCobro) || 10 };
       delete obj.vicepresidente;
       await db.put('f_comunidades', obj); toast(c ? 'Comunidad guardada' : 'Comunidad creada'); done && done(obj);
     },
   });
+  const sel = document.getElementById('presVec');
+  if (sel) sel.onchange = () => {
+    const x = vecs.find(q => q.id === sel.value); if (!x) return;
+    const f = sel.form, put = (n, val) => { const e = f.elements[n]; if (e) e.value = val || ''; };
+    put('presidente', x.propietario); put('presidentePiso', x.piso); put('presidenteTel', x.telefono); put('presidenteEmail', x.email);
+  };
 }
 
 export async function importarDialogo(d, refresh) {

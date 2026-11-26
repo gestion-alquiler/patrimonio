@@ -30,7 +30,7 @@ export function renderVecino(c, vid, d) {
     ${hist.length ? `<div class="small"><b>Historial de cuota:</b> ${hist.map(h => `${eur(h.importe)} desde ${MES3[Number(h.desde.slice(5, 7)) - 1]} ${h.desde.slice(0, 4)}`).join(' · ')}</div>` : ''}</section>
   <section class="card pad stack"><h2>Propietario</h2><div style="${grid};gap:14px">
     ${field('Nombre o razón social', 'propietario', x.propietario, { required: true })}${field('DNI / NIE / CIF', 'dni', x.dni)}${field('Teléfono', 'telefono', x.telefono, { type: 'tel' })}${field('Email', 'email', x.email, { type: 'email' })}
-    ${field('Dirección para notificaciones', 'direccionNotif', x.direccionNotif, { placeholder: 'Si no vive en la finca' })}${select('Idioma de los escritos', 'idioma', x.idioma, [['ca', 'Català'], ['es', 'Castellano']])}
+    ${field('Dirección postal (si no vive en la finca)', 'direccionNotif', x.direccionNotif, { placeholder: 'Calle, número · CP Población', hint: 'Se usa en cartas, convocatorias y etiquetas en lugar del piso' })}${select('Idioma de los escritos', 'idioma', x.idioma, [['ca', 'Català'], ['es', 'Castellano']])}
     ${field('Propietario desde', 'propietarioDesde', x.propietarioDesde, { type: 'date' })}<label class="check" style="align-self:end"><input type="checkbox" name="avisosEmail" ${x.avisosEmail ? 'checked' : ''}> Acepta avisos por email</label></div></section>
   <section class="card pad stack"><h2>Banco</h2><div style="${grid};gap:14px">
     ${select('Forma de pago', 'formaPago', x.formaPago, ['Domiciliado', 'Transferencia', 'Efectivo'])}${field('IBAN', 'iban', x.iban)}${field('Titular de la cuenta', 'titular', x.titular)}${field('Mandato SEPA (referencia y fecha)', 'mandato', x.mandato)}</div></section>
@@ -100,7 +100,7 @@ export function bindVecino(el, c, vid, d, refresh) {
       body: `<div class="alert"><div><b>${esc(x.propietario)}</b> pasará a «Propietarios anteriores» con todos sus datos.${dd.total > 0.1 ? `<br>Tiene <b>${eur(dd.total)}</b> pendientes (${esc(resDeuda(dd))}): quedarán anotados en su histórico.` : ''}</div></div>
       <div class="fgrid">${field('Fecha del cambio (escritura)', 'fecha', hoyISO(), { type: 'date', required: true })}${field('Nuevo propietario', 'propietario', '', { required: true })}
       ${field('DNI / NIE / CIF', 'dni', '')}${field('Teléfono', 'telefono', '', { type: 'tel' })}${field('Email', 'email', '', { type: 'email' })}${select('Idioma de los escritos', 'idioma', x.idioma || 'ca', [['ca', 'Català'], ['es', 'Castellano']])}
-      ${select('Forma de pago', 'formaPago', 'Domiciliado', ['Domiciliado', 'Transferencia', 'Efectivo'])}${field('IBAN', 'iban', '')}${field('Dirección para notificaciones', 'direccionNotif', '')}
+      ${select('Forma de pago', 'formaPago', 'Domiciliado', ['Domiciliado', 'Transferencia', 'Efectivo'])}${field('IBAN', 'iban', '')}${field('Dirección postal (si no vive en la finca)', 'direccionNotif', '')}
       ${textarea('Notas del cambio', 'nota', '', { placeholder: 'Notaría, quién asume lo pendiente, certificado de deudas emitido…' })}</div>
       <div class="small muted">El ocupante, el coeficiente y la cuota del piso no cambian. Revisa con la notaría y el nuevo propietario quién asume lo pendiente.</div>`,
       onSubmit: async (f) => {
