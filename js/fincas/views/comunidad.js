@@ -484,7 +484,7 @@ export function bind(el, [id, tab, sub, extra], d, refresh) {
   on('[data-a=etiquetas]', async () => {
     const { dialogoEtiquetas } = await import('../../etiquetas.js'); const { getAjustesFincas, setAjustesFincas } = await import('../../db.js');
     const loc = c.localidad || '';
-    const prop = (v) => ({ lineas: v.direccionNotif ? [v.propietario, v.direccionNotif] : [v.propietario, [c.direccion, v.piso].filter(Boolean).join(', '), loc] });
+    const prop = (v) => ({ lineas: v.direccionNotif ? [v.propietario, ...v.direccionNotif.split(/\s+·\s+|\n/)] : [v.propietario, [c.direccion, v.piso].filter(Boolean).join(', '), loc] });
     const ocup = (v) => ({ lineas: [v.ocupante, [c.direccion, v.piso].filter(Boolean).join(', '), loc] });
     dialogoEtiquetas('Etiquetas · ' + c.nombre, [['Todos los propietarios', vs.map(prop)], ['Propietarios sin email (correo postal)', vs.filter(v => !v.email).map(prop)],
       ['Propietarios con importes pendientes', vs.filter(v => deudaVecino(c, v, d).total > 0.1).map(prop)], ['Ocupantes (inquilinos de los pisos)', vs.filter(v => v.ocupante).map(ocup)]],

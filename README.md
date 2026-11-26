@@ -58,6 +58,7 @@ Novedades de la versión 3 (escritorio completo):
 - Admon. Fincas · Liquidación anual: un único PDF igual para todos (saldo a 31/12 del año anterior + ingresos − gastos = saldo final, fondo de reserva aparte, si la comunidad está en positivo o negativo, gastos a partes iguales y por coeficiente, obras y derramas con su saldo, quién debe y cuánto, reparto por propietario), en català o castellano, y exportación.
 - Patrimonio · Informes: resultado y rentabilidad por inmueble, gastos por categoría, días alquilado y datos para la renta (PDF y CSV para el gestor).
 - Patrimonio · Recibos de alquiler numerados, dos por hoja, desde cada cobro, por propiedad o de todas a la vez.
+- Admon. Fincas · Importar desde Excel: reconoce el listado de propietarios del programa de administración (piso, % de escritura, propietario, NIF, dirección, email, teléfono, cuenta) y la contabilidad de cuotas. Si la comunidad ya existe, completa los datos sin borrar nada y avisa de lo que no coincide.
 - Conciliación bancaria en las dos partes: importa el extracto (Excel, CSV o Norma 43), sugiere con qué cobro o gasto va cada movimiento (rentas, cuotas, remesas de recibos, derramas, gastos ya apuntados o nuevos con su proveedor), acepta las seguras de golpe y anota el saldo del banco. Todo se puede deshacer.
 
 Todo se puede editar y borrar.

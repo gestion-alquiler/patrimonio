@@ -225,3 +225,79 @@ export async function importarExcel(file) {
   if (!saldoInicial) avisos.push('No he encontrado el saldo del banco: anótalo con «Actualizar saldo» en la comunidad');
   return { comunidad, vecinos, cobros, derramas, gastos, avisos, anios, sumaCoef };
 }
+
+/* ---------- Listado de propietarios (programa de administración: «listado_propiedades») ----------
+   Columnas: Nombre propiedad · Tipo de propiedad · % Escritura · Nombre propietario · Nif · Dirección postal ·
+   Código postal · Población · Provincia · País · Email · Teléfono · Banco */
+export { normPiso };
+// Para reconocer el mismo piso escrito de formas distintas («Baixos 1ª», «BAIXOS 1», «Bajos 1»)
+export const clavePiso = (s) => sinAcentos(s).replace(/^BAJOS?\b/, 'BAIXOS').replace(/[ºª°.]/g, '').replace(/\s+/g, ' ').trim();
+const limpio = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+const fmtIban = (s) => { const t = String(s || '').replace(/\s+/g, '').toUpperCase(); return t ? t.replace(/(.{4})/g, '$1 ').trim() : ''; };
+const fmtTel = (s) => String(s || '').split(/[;,/()]+/).map(x => x.replace(/\D/g, '')).filter(x => x.length >= 9).map(x => x.length === 9 ? x.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3') : x).join(' / ');
+const ordenPiso = (p) => { const k = normPiso(p); const pl = /^(BAIXOS|BAJOS|BAJO|BX|LOCAL|ENTRESOL|PRINCIPAL)/.test(k) ? 0 : Number((k.match(/^(\d+)/) || [])[1] || 50); const pu = Number((k.match(/(\d+)\s*A?$/) || [])[1] || 0); return pl * 100 + pu; };
+
+export async function leerListado(file) {
+  await cargarXLSX();
+  const wb = window.XLSX.read(await file.arrayBuffer(), { cellDates: true });
+  for (const name of wb.SheetNames) {
+    const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null });
+    const hi = rows.findIndex(r => r && r.some(x => /^NOMBRE PROPIEDAD$/.test(sinAcentos(x))) && r.some(x => /PROPIETARIO/.test(sinAcentos(x))));
+    if (hi < 0) continue;
+    const col = (re) => rows[hi].findIndex(x => re.test(sinAcentos(x)));
+    const C = { piso: col(/^NOMBRE PROPIEDAD/), tipo: col(/^TIPO/), coef: col(/ESCRITURA|COEF/), prop: col(/^NOMBRE PROPIETARIO/), nif: col(/^NIF|^DNI/), dir: col(/^DIRECCION/), cp: col(/^CODIGO POSTAL|^CP$/), pob: col(/^POBLACION/), prov: col(/^PROVINCIA/), pais: col(/^PAIS/), email: col(/^EMAIL|^CORREO/), tel: col(/^TELEFONO/), banco: col(/^BANCO|^IBAN|^CUENTA/) };
+    const g = (row, k) => (C[k] >= 0 ? row[C[k]] : null);
+    const filas = rows.slice(hi + 1).filter(r => r && limpio(g(r, 'piso')) && limpio(g(r, 'prop')));
+    // La dirección de la finca es la que más se repite (sin el piso)
+    const cuenta = {};
+    filas.forEach(r => { const m = limpio(g(r, 'dir')).match(/^(.*?\d+)\b/); if (m) { const k = m[1] + '|' + limpio(g(r, 'cp')) + '|' + limpio(g(r, 'pob')); cuenta[k] = (cuenta[k] || 0) + 1; } });
+    const [calle = '', cp = '', pob = ''] = (Object.entries(cuenta).sort((a, b) => b[1] - a[1])[0]?.[0] || '').split('|');
+    const enFinca = (d) => calle && sinAcentos(d).startsWith(sinAcentos(calle));
+    const avisos = [];
+    const vecinos = filas.map((r, i) => {
+      const piso = limpio(g(r, 'piso')), dir = limpio(g(r, 'dir')), c = g(r, 'coef');
+      const coef = esNum(c) ? Math.round((c <= 1.5 ? c * 100 : c) * 10000) / 10000 : num0(c);
+      const v = { piso, propietario: limpio(g(r, 'prop')), dni: limpio(g(r, 'nif')).toUpperCase(), email: limpio(g(r, 'email')).toLowerCase(), telefono: fmtTel(g(r, 'tel')), iban: fmtIban(g(r, 'banco')), coef, orden: ordenPiso(piso) };
+      v.titular = v.iban ? v.propietario : ''; v.formaPago = v.iban ? 'Domiciliado' : 'Transferencia'; v.avisosEmail = !!v.email;
+      if (dir && !enFinca(dir)) {
+        const prov = limpio(g(r, 'prov')), pais = limpio(g(r, 'pais'));
+        v.direccionNotif = [dir, [limpio(g(r, 'cp')), limpio(g(r, 'pob'))].filter(Boolean).join(' ') + (prov && sinAcentos(prov) !== sinAcentos(limpio(g(r, 'pob'))) ? ` (${prov})` : '') + (pais && !/^ESPANA|^SPAIN/.test(sinAcentos(pais)) ? ' · ' + pais : '')].filter(Boolean).join(' · ');
+      }
+      if (!v.dni) avisos.push(`${piso}: falta el NIF`);
+      else if (/^\d{8}[A-Z]$/.test(v.dni) && 'TRWAGMYFPDXBNJZSQVHLCKE'[Number(v.dni.slice(0, 8)) % 23] !== v.dni[8]) avisos.push(`${piso}: la letra del NIF ${v.dni} no cuadra`);
+      if (v.iban && !ibanOk(v.iban)) avisos.push(`${piso}: la cuenta ${v.iban} no es válida (revisa los dígitos)`);
+      if (!v.email) avisos.push(`${piso}: sin email (recibirá las cartas por correo postal)`);
+      if (g(r, 'tipo') && !/VIVIENDA/.test(sinAcentos(g(r, 'tipo')))) v.obs = 'Tipo: ' + limpio(g(r, 'tipo'));
+      return v;
+    }).sort((a, b) => a.orden - b.orden).map((v, i) => ({ ...v, orden: i }));
+    const suma = vecinos.reduce((a, v) => a + (v.coef || 0), 0);
+    if (Math.abs(suma - 100) > 0.05) avisos.push(`Los coeficientes suman ${suma.toFixed(4).replace('.', ',')} % (deberían sumar 100 %)`);
+    const nombre = calle ? calle.replace(/^(CARRER|CALLE|C\/|C\.)\s*(DE\s+|D')?/i, 'C/ ') : '';
+    return { tipo: 'listado', vecinos, sumaCoef: suma, avisos, comunidad: { nombre, direccion: calle, localidad: [cp, titulo(pob)].filter(Boolean).join(' ') } };
+  }
+  return null;
+}
+function ibanOk(s) { const t = s.replace(/\s+/g, ''); if (!/^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(t)) return false; const r = (t.slice(4) + t.slice(0, 4)).replace(/[A-Z]/g, c => c.charCodeAt(0) - 55); let m = 0; for (const ch of r) m = (m * 10 + Number(ch)) % 97; return m === 1; }
+function num0(v) { const n = Number(String(v ?? '').replace(',', '.').replace('%', '')); return isFinite(n) ? n : 0; }
+// Datos de contacto que se conservan de los vecinos al volver a importar
+export const CONTACTO = ['dni', 'telefono', 'email', 'iban', 'titular', 'direccionNotif', 'idioma', 'avisosEmail', 'formaPago', 'ocupante', 'obs', 'propietarioDesde', 'historialPropietarios', 'propietariosAnteriores'];
+
+// Deja solo la contabilidad desde el año indicado (lo anterior queda cerrado en el Excel):
+// el saldo del banco a 31/12 del año anterior pasa a ser el saldo inicial.
+export function soloDesde(r, Y) {
+  const ini = `${Y}-01-01`, fin = `${Y - 1}-12-31`, mes0 = `${Y}-01`;
+  const cobros = r.cobros.filter(c => (c.concepto === 'cuota' ? c.anio >= Y : (c.fecha || '') >= ini));
+  const gastos = r.gastos.filter(g => (g.fecha || '') >= ini);
+  const derramas = r.derramas.filter(d => cobros.some(c => c._d === d._key) || gastos.some(g => g._d === d._key) || (d.plazos || []).some(p => (p.mes || '') >= mes0));
+  const sb = (r.comunidad.saldosBanco || []).filter(x => x.fecha <= fin).sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0];
+  const comunidad = { ...r.comunidad, cobrosDesde: r.comunidad.cobrosDesde > mes0 ? r.comunidad.cobrosDesde : mes0, saldosBanco: (r.comunidad.saldosBanco || []).filter(x => x.fecha >= fin),
+    ...(sb ? { saldoInicial: sb.importe, saldoFecha: sb.fecha } : {}), notas: (r.comunidad.notas || '') + ` Solo se ha importado desde ${Y}; lo anterior está en el Excel.` };
+  const vecinos = r.vecinos.map(v => {
+    const h = v.cuotaHistorial || [], antes = h.filter(x => x.desde < mes0), despues = h.filter(x => x.desde >= mes0);
+    const hist = [...(antes.length && !despues.some(x => x.desde === mes0) ? [{ desde: mes0, importe: antes[antes.length - 1].importe }] : []), ...despues];
+    return { ...v, cuotaHistorial: hist, cuota: hist.length ? hist[hist.length - 1].importe : v.cuota };
+  });
+  const avisos = r.avisos.filter(a => !new RegExp(`INGRESOS (${r.anios.filter(y => y < Y).join('|') || 'x'})\\b`).test(a));
+  if (!sb) avisos.push(`No he encontrado el saldo del banco a 31/12/${Y - 1}: anótalo en la comunidad`);
+  return { ...r, cobros, gastos, derramas, comunidad, vecinos, avisos, anios: r.anios.filter(y => y >= Y) };
+}

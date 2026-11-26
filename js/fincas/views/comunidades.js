@@ -1,10 +1,12 @@
 import { db, borrarComunidad } from '../../db.js';
 import { esc, eur, num, modal, confirmar, field, select, textarea, money, fd, toast } from '../../ui.js';
 import { vecinosDe, deudaVecino, cuotaEn } from '../calc.js';
-import { importarExcel } from '../importar.js';
+import { importarExcel, leerListado, normPiso, clavePiso, CONTACTO, soloDesde } from '../importar.js';
 import { elegirArchivos } from '../../files.js';
 
 let verArchivadas = false;
+const sinTildes = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+const coefTxt = (n) => String(Math.round(n * 10000) / 10000).replace('.', ',');
 
 export async function render(_, d) {
   const hoy = new Date(), y = hoy.getFullYear(), m = hoy.getMonth() + 1;
@@ -100,10 +102,23 @@ export async function importarDialogo(d, refresh) {
   if (!f) return;
   toast('Leyendo el Excel…');
   let r;
+  try { const l = await leerListado(f); if (l) return dialogoListado(l, f, d, refresh); } catch (e) { console.error(e); toast('No se pudo leer: ' + e.message); return; }
   try { r = await importarExcel(f); } catch (e) { console.error(e); toast('No se pudo leer: ' + e.message); return; }
-  const existe = d.coms.find(c => c.nombre.trim().toLowerCase() === r.comunidad.nombre.trim().toLowerCase());
-  modal({ title: 'Importar desde Excel', submit: existe ? 'Sustituir e importar' : 'Importar', wide: true,
+  const clave = (t) => normPiso(t || '').replace(/\b(COMUNIDAD|COMUNITAT|DE|DEL|PROPIETARIOS|PROPIETARIS|CARRER|CALLE|C|CL|AVINGUDA|AVENIDA|AV)\b/g, ' ').replace(/[^A-Z0-9]/g, '');
+  const kr = clave(r.comunidad.nombre);
+  const existe = d.coms.find(c => !c.archivada && kr && (clave(c.nombre) === kr || (clave(c.nombre).length > 5 && (kr.includes(clave(c.nombre)) || clave(c.nombre).includes(kr)))));
+  // Con una comunidad que ya existe: se mantienen el nombre del piso, el propietario y el coeficiente que ya tiene, y se avisa de lo que no coincide
+  const viejos = existe ? d.vecinos.filter(v => v.comunidadId === existe.id) : [];
+  const difs = [], difCoef = [], difProp = [];
+  if (existe) for (const v of r.vecinos) {
+    const o = viejos.find(x => clavePiso(x.piso) === clavePiso(v.piso)); if (!o) { difs.push(`${v.piso}: no existe en la comunidad, se añade`); continue; }
+    const pal = (t) => sinTildes(t).split(/\s+/).filter(w => w.length > 2);
+    if (o.propietario && v.propietario && !pal(v.propietario).some(w => pal(o.propietario).includes(w))) difProp.push({ piso: o.piso, app: o.propietario, excel: v.propietario });
+    if (o.coef && v.coef && Math.abs(o.coef - v.coef) > 0.001) { difCoef.push(`${o.piso}: ${coefTxt(o.coef)} % en la app · ${coefTxt(v.coef)} % en el Excel`); }
+  }
+  modal({ title: 'Importar desde Excel', submit: existe ? 'Actualizar e importar' : 'Importar', wide: true,
     body: `<p style="margin:0">He encontrado en <b>${esc(f.name)}</b>:</p>
+    ${r.anios.length > 1 ? `<label class="field">Qué contabilidad importo<select name="desde"><option value="">Todos los años (${r.anios.join(', ')})</option>${r.anios.slice(1).map(y => `<option value="${y}">Solo desde ${y} (lo anterior queda cerrado en el Excel; el saldo a 31/12/${y - 1} será el inicial)</option>`).join('')}</select></label>` : ''}
     <dl class="dl"><dt>Comunidad</dt><dd class="b">${esc(r.comunidad.nombre)}</dd>
     <dt>Vecinos</dt><dd>${r.vecinos.length} (${r.vecinos.map(v => esc(v.piso)).join(', ')})</dd>
     <dt>Suma de coeficientes</dt><dd class="num">${r.sumaCoef.toFixed(4).replace('.', ',')} %</dd>
@@ -112,17 +127,56 @@ export async function importarDialogo(d, refresh) {
     <dt>Gastos</dt><dd>${r.gastos.length} apuntes</dd>
     <dt>Saldos del banco</dt><dd class="num">${(r.comunidad.saldosBanco || []).map(x => eur(x.importe) + ' a ' + esc(x.fecha.split('-').reverse().join('/'))).join('<br>') || '—'}</dd></dl>
     ${r.avisos.length ? `<div class="strip warn"><div><div class="l">Revisa después de importar</div>${r.avisos.map(a => `<div class="small">• ${esc(a)}</div>`).join('')}</div></div>` : ''}
-    ${existe ? `<div class="strip bad"><div>Ya existe una comunidad llamada <b>${esc(existe.nombre)}</b>. Se sustituirá por los datos del Excel.</div></div>` : ''}
+    ${difs.length ? `<div class="strip warn"><div><div class="l">No coincide con lo que ya hay</div>${difs.map(a => `<div class="small">• ${esc(a)}</div>`).join('')}</div></div>` : ''}
+    ${difProp.length ? `<div class="strip warn"><div><div class="l">El propietario no coincide</div>${difProp.map((x, i) => `<label class="field" style="margin-top:6px">${esc(x.piso)}<select name="prop_${i}"><option value="app">${esc(x.app)} (el que ya tiene la app)</option><option value="excel">${esc(x.excel)} (el del Excel; ${esc(x.app)} pasa a propietario anterior)</option></select></label>`).join('')}
+      <div class="small" style="margin-top:6px">Si cambia el propietario, revisa después su NIF, teléfono, email y cuenta: son los del anterior.</div></div></div>` : ''}
+    ${difCoef.length ? `<div class="strip warn"><div><div class="l">Los coeficientes no coinciden</div>${difCoef.map(a => `<div class="small">• ${esc(a)}</div>`).join('')}
+      <label class="field" style="margin-top:8px">Qué coeficientes uso (sirven para repartir gastos y derramas)<select name="coefs"><option value="app">Los que ya tiene la app</option><option value="excel">Los del Excel</option></select></label></div></div>` : ''}
+    ${existe ? `<div class="strip bad"><div>Ya existe una comunidad llamada <b>${esc(existe.nombre)}</b>. Se sustituyen sus cuotas, cobros, derramas y gastos por los del Excel. Se conservan los datos de la comunidad y los de contacto de cada propietario (NIF, teléfono, email, cuenta, dirección).</div></div>` : ''}
     <div class="small muted">Todo se puede corregir después a mano.</div>`,
-    onSubmit: async () => {
+    onSubmit: async (form) => {
+      const y0 = fd(form), usarExcel = y0.coefs === 'excel';
+      if (y0.desde) r = soloDesde(r, Number(y0.desde));
+      const cambioProp = {}; difProp.forEach((x, i) => { if (y0['prop_' + i] === 'excel') cambioProp[clavePiso(x.piso)] = x; });
+      // Si ya existía, se conservan los datos de la comunidad y los de contacto de los vecinos que el Excel no trae
       if (existe) await borrarComunidad(existe.id);
-      const com = await db.put('f_comunidades', r.comunidad);
+      const lleno = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && !v.length)));
+      const com = await db.put('f_comunidades', existe ? { ...existe, ...lleno(r.comunidad), ...lleno(Object.fromEntries(['nombre', 'direccion', 'localidad', 'cif', 'iban', 'banco', 'presidente', 'presidentePiso', 'presidenteTel', 'presidenteEmail', 'presidenteHasta', 'secretario', 'caracteristicas', 'notas', 'idioma', 'normativa'].map(k => [k, existe[k]]))), presupuestos: { ...(existe.presupuestos || {}), ...(r.comunidad.presupuestos || {}) }, id: undefined } : r.comunidad);
       const map = {};
-      for (const v of r.vecinos) { const key = v._key; delete v._key; v.comunidadId = com.id; const g = await db.put('f_vecinos', v); map[key] = g.id; }
+      for (const v of r.vecinos) { const old = viejos.find(o => clavePiso(o.piso) === clavePiso(v.piso)); if (old) { for (const k of CONTACTO) if ((v[k] == null || v[k] === '') && old[k] != null && old[k] !== '') v[k] = old[k]; for (const k of ['piso', 'propietario', 'orden', 'formaPago', 'idioma', 'avisosEmail', ...(usarExcel ? [] : ['coef'])]) if (old[k] != null && old[k] !== '') v[k] = old[k];
+          const cp = cambioProp[clavePiso(old.piso)]; if (cp) { v.propietario = cp.excel; v.propietariosAnteriores = [...new Set([...(old.propietariosAnteriores || []), cp.app])]; v.historialPropietarios = [...(old.historialPropietarios || []), { propietario: cp.app, dni: old.dni || '', telefono: old.telefono || '', email: old.email || '', iban: old.iban || '', direccionNotif: old.direccionNotif || '', hasta: '', nota: 'Datos del listado de propietarios' }]; v.obs = [old.obs, 'Revisar NIF, teléfono, email y cuenta: venían del propietario anterior (' + cp.app + ').'].filter(Boolean).join(' '); } }
+        const key = v._key; delete v._key; v.comunidadId = com.id; const g = await db.put('f_vecinos', v); map[key] = g.id; }
       const dmap = {};
       for (const der of r.derramas) { const key = der._key; delete der._key; der.comunidadId = com.id; const g = await db.put('f_derramas', der); dmap[key] = g.id; }
       for (const c of r.cobros) { const o = { ...c, comunidadId: com.id, vecinoId: map[c._v] }; delete o._v; if (c._d) { o.derramaId = dmap[c._d]; delete o._d; } if (o.vecinoId) await db.put('f_cobros', o); }
       for (const g of r.gastos) { const o = { ...g, comunidadId: com.id }; if (g._d) { o.derramaId = dmap[g._d]; delete o._d; } await db.put('f_gastos', o); }
       toast('Comunidad importada'); location.hash = '#/finca/' + com.id; refresh();
     } });
+}
+
+// Listado de propietarios: crea la comunidad o completa una que ya existe (sin borrar nada)
+function dialogoListado(r, f, d, refresh) {
+  const activas = d.coms.filter(c => !c.archivada);
+  const parecida = activas.find(c => normPiso(c.nombre).replace(/\W/g, '').includes(normPiso(r.comunidad.nombre).replace(/^CO?\W*/, '').replace(/\W/g, '')) || normPiso(c.direccion || '') === normPiso(r.comunidad.direccion));
+  modal({ title: 'Importar listado de propietarios', submit: 'Importar', wide: true,
+    body: `<p style="margin:0">He encontrado en <b>${esc(f.name)}</b> ${r.vecinos.length} propietarios: ${r.vecinos.map(v => esc(v.piso)).join(', ')}. Los coeficientes suman <b class="num">${r.sumaCoef.toFixed(4).replace('.', ',')} %</b>.</p>
+      <label class="field">Dónde los pongo<select name="destino" id="destLis">${activas.map(c => `<option value="${c.id}" ${parecida?.id === c.id ? 'selected' : ''}>Completar «${esc(c.nombre)}»</option>`).join('')}<option value="" ${parecida ? '' : 'selected'}>Comunidad nueva</option></select></label>
+      <div id="nuevaLis" class="grid2" ${parecida ? 'hidden' : ''}>${field('Nombre de la comunidad', 'nombre', r.comunidad.nombre)}${field('Dirección', 'direccion', r.comunidad.direccion)}${field('Código postal y población', 'localidad', r.comunidad.localidad)}</div>
+      <div class="small muted" id="expLis">${parecida ? 'Los pisos que ya existan se actualizan con los datos del listado (propietario, NIF, teléfono, email, cuenta, coeficiente); los que no, se añaden. No se borra nada.' : 'Se crea la comunidad con sus propietarios. Las cuotas, el presupuesto y los saldos los completas después.'}</div>
+      ${r.avisos.length ? `<div class="strip warn"><div><div class="l">Revisa después de importar</div>${r.avisos.map(a => `<div class="small">• ${esc(a)}</div>`).join('')}</div></div>` : ''}`,
+    onSubmit: async (form) => {
+      const y = fd(form);
+      let com = y.destino ? d.coms.find(c => c.id === y.destino) : null;
+      if (!com) com = await db.put('f_comunidades', { nombre: (y.nombre || r.comunidad.nombre || 'Comunidad').trim(), direccion: (y.direccion || '').trim(), localidad: (y.localidad || '').trim(), idioma: 'ca', normativa: 'Codi civil de Catalunya', periodicidad: 'mensual', diaCobro: 10, saldosBanco: [] });
+      const ya = d.vecinos.filter(v => v.comunidadId === com.id);
+      let nuevos = 0, actualizados = 0;
+      for (const v of r.vecinos) {
+        const old = ya.find(o => clavePiso(o.piso) === clavePiso(v.piso));
+        if (old) { const o = { ...old }; for (const [k, val] of Object.entries(v)) if (k !== 'orden' && val !== '' && val != null) o[k] = val; await db.put('f_vecinos', o); actualizados++; }
+        else { await db.put('f_vecinos', { ...v, orden: ya.length + v.orden, comunidadId: com.id, cuota: 0, saldoAnterior: 0 }); nuevos++; }
+      }
+      toast(`${nuevos ? nuevos + ' propietarios añadidos' : ''}${nuevos && actualizados ? ' · ' : ''}${actualizados ? actualizados + ' actualizados' : ''}`); location.hash = '#/finca/' + com.id; refresh();
+    } });
+  const sel = document.getElementById('destLis');
+  sel.onchange = () => { document.getElementById('nuevaLis').hidden = !!sel.value; document.getElementById('expLis').textContent = sel.value ? 'Los pisos que ya existan se actualizan con los datos del listado (propietario, NIF, teléfono, email, cuenta, coeficiente); los que no, se añaden. No se borra nada.' : 'Se crea la comunidad con sus propietarios. Las cuotas, el presupuesto y los saldos los completas después.'; };
 }

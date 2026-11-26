@@ -43,7 +43,7 @@ const T = {
 /* ---------- Piezas ---------- */
 export const cabeceraCom = (c, l) => ({ izq: `${T[l].comunidad}<br><b>${e(c.nombre)}</b>`, der: `${e([c.direccion, c.localidad].filter(Boolean).join(' · '))}${c.cif ? '<br>CIF ' + e(c.cif) : ''}` });
 export const destinatarioVecino = (v, c) => { const dir = v.direccionNotif || [c.direccion, v.piso].filter(Boolean).join(', ');
-  return `${e(v.propietario)}<br>${e(dir)}${v.direccionNotif ? '' : '<br>' + e(c.localidad || '')}`; };
+  return `${e(v.propietario)}<br>${String(dir).split(/\s+·\s+|\n/).map(e).join('<br>')}${v.direccionNotif ? '' : '<br>' + e(c.localidad || '')}`; };
 const puntos = (j, l) => `<ol class="odd">${(j.puntos || []).map(p => `<li>${e(p[l] || p[l === 'ca' ? 'es' : 'ca'] || '')}</li>`).join('')}</ol>`;
 const lph = (c) => /horizontal/i.test(c.normativa || '');
 export const lugarFechaCom = (c, iso, l) => `${localidadSola(c)}${localidadSola(c) ? ', ' : ''}${fechaLarga(iso || new Date().toISOString().slice(0, 10), l)}`;
