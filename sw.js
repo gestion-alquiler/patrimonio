@@ -1,5 +1,5 @@
 // Permite abrir la app sin conexión. Cambia VERSION al publicar cambios.
-const VERSION = 'patrimonio-v3.7.0';
+const VERSION = 'patrimonio-v3.8.0';
 const FILES = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/db.js', 'js/ui.js', 'js/calc.js', 'js/files.js', 'js/backup.js', 'js/copias.js', 'js/prueba.js', 'js/pruebaUI.js',
   'js/views/inicio.js', 'js/views/propiedades.js', 'js/views/ficha.js', 'js/views/ajustes.js',
   'js/fincas/calc.js', 'js/fincas/importar.js', 'js/fincas/views/comunidades.js', 'js/fincas/views/comunidad.js', 'js/fincas/views/vecino.js', 'js/fincas/views/proveedores.js', 'js/fincas/docs.js', 'js/fincas/cartasFin.js', 'js/cartasPat.js', 'js/cartas.js', 'js/editor.js', 'js/plantillas.js', 'js/imprimir.js', 'js/views/plantillas.js', 'js/views/informes.js', 'js/recibos.js', 'js/etiquetas.js', 'js/fincas/actas.js', 'js/fincas/liquidacion.js', 'js/banco.js', 'js/views/conciliacion.js', 'js/fincas/bancoFin.js', 'js/fincas/views/ajustes.js', 'js/drive.js', 'js/driveUI.js', 'vendor/jszip.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];

@@ -286,9 +286,12 @@ export const CONTACTO = ['dni', 'telefono', 'email', 'iban', 'titular', 'direcci
 // el saldo del banco a 31/12 del año anterior pasa a ser el saldo inicial.
 export function soloDesde(r, Y) {
   const ini = `${Y}-01-01`, fin = `${Y - 1}-12-31`, mes0 = `${Y}-01`;
-  const cobros = r.cobros.filter(c => (c.concepto === 'cuota' ? c.anio >= Y : (c.fecha || '') >= ini));
-  const gastos = r.gastos.filter(g => (g.fecha || '') >= ini);
-  const derramas = r.derramas.filter(d => cobros.some(c => c._d === d._key) || gastos.some(g => g._d === d._key) || (d.plazos || []).some(p => (p.mes || '') >= mes0));
+  // Las derramas que siguen vivas en el año se importan con TODOS sus cobros y pagos de obra (también los de antes),
+  // para saber qué ha pagado cada uno; el saldo del banco no se ve afectado porque lo anterior al saldo inicial no cuenta.
+  const viva = (d) => (d.plazos || []).some(p => (p.mes || '') >= mes0) || r.cobros.some(c => c._d === d._key && (c.fecha || '') >= ini) || r.gastos.some(g => g._d === d._key && (g.fecha || '') >= ini);
+  const derramas = r.derramas.filter(viva), vivas = new Set(derramas.map(d => d._key));
+  const cobros = r.cobros.filter(c => (c.concepto === 'cuota' ? c.anio >= Y : (c.fecha || '') >= ini || vivas.has(c._d)));
+  const gastos = r.gastos.filter(g => (g.fecha || '') >= ini || vivas.has(g._d));
   const sb = (r.comunidad.saldosBanco || []).filter(x => x.fecha <= fin).sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0];
   const comunidad = { ...r.comunidad, cobrosDesde: r.comunidad.cobrosDesde > mes0 ? r.comunidad.cobrosDesde : mes0, saldosBanco: (r.comunidad.saldosBanco || []).filter(x => x.fecha >= fin),
     ...(sb ? { saldoInicial: sb.importe, saldoFecha: sb.fecha } : {}), notas: (r.comunidad.notas || '') + ` Solo se ha importado desde ${Y}; lo anterior está en el Excel.` };

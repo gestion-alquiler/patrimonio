@@ -1,7 +1,7 @@
 // Ficha de un vecino en su propia página: se edita y solo se guarda con «Guardar».
 import { db } from '../../db.js';
 import { esc, eur, num, modal, confirmar, field, select, textarea, money, fd, toast, fecha, hoyISO, MESES, MES3 } from '../../ui.js';
-import { vecinosDe, deudaVecino, coefTxt } from '../calc.js';
+import { vecinosDe, deudaVecino, coefTxt, parteDerrama } from '../calc.js';
 import { cartasDeVecino, paginaCartaVecino } from '../cartasFin.js';
 import { abrirImpresion } from '../../imprimir.js';
 
@@ -22,6 +22,7 @@ export function renderVecino(c, vid, d) {
   <a class="back" href="#/finca/${c.id}/vecinos">← Vecinos de ${esc(c.nombre)}</a>
   <div class="head"><div><h1>${nuevo ? 'Nuevo vecino' : esc(x.piso)}</h1><div class="sub">${nuevo ? 'Rellena los datos y pulsa Guardar.' : esc(x.propietario) + (x.propietarioDesde ? ' · propietario desde el ' + fecha(x.propietarioDesde) : '')}</div></div>
     ${nuevo ? '' : `<div class="actions"><span class="badge ${dd.total > 0.1 ? 'bad' : 'ok'}" title="${esc(resDeuda(dd))}">${dd.total > 0.1 ? 'Pendiente ' + eur(dd.total) : 'Al corriente'}</span><a class="btn" href="#/finca/${c.id}/carta/nueva/${x.id}">Escribir carta</a><button class="btn" data-v="cambio">Cambio de propietario</button></div>`}</div>
+  ${!nuevo && dd.total > 0.1 ? pendienteHtml(c, x, d, dd) : ''}
   <form id="fvec" class="stack" style="gap:20px" autocomplete="off">
   <section class="card pad stack"><h2>Piso</h2><div style="${grid};gap:14px">
     ${field('Piso / local', 'piso', x.piso, { required: true, placeholder: '1º 2ª, Baixos 1…' })}${field('Coeficiente (%)', 'coef', x.coef != null ? String(x.coef).replace('.', ',') : '', { inputmode: 'decimal', required: true, hint: 'Como en la escritura, p. ej. 14,4839' })}
@@ -119,4 +120,20 @@ export function bindVecino(el, c, vid, d, refresh) {
       await db.del('f_vecinos', x.id); toast('Vecino borrado'); volver();
     }
   };
+}
+
+// Qué debe este vecino y por qué
+function pendienteHtml(c, x, d, dd) {
+  const vs = vecinosDe(d, c.id);
+  const fila = (z) => {
+    if (z.tipo === 'cuota') return [`Cuota de ${MESES[z.m - 1].toLowerCase()} ${z.y}`, z.falta < (Number(x.cuota) || 0) - 0.01 ? 'Pago parcial: falta una parte' : 'Sin pagar', `#/finca/${c.id}/cuotas`];
+    if (z.tipo === 'saldo') return ['Saldo anterior', 'Deuda de antes de empezar a llevar las cuotas en la aplicación', ''];
+    const der = d.derramas.find(q => q.comunidadId === c.id && q.concepto === z.der), n = (der?.plazos || []).length || 1;
+    const parte = der ? parteDerrama(der, x, vs) : 0, pag = d.cobros.filter(q => q.vecinoId === x.id && q.derramaId === der?.id).reduce((a, q) => a + (Number(q.importe) || 0), 0);
+    return [`${z.der}${n > 1 ? ` · plazo ${z.plazo} de ${n}` : ''}`, der ? `Le corresponden ${eur(parte)} (${coefTxt(x.coef)} % de ${eur(der.total)}); ha pagado ${eur(pag)}` : '', `#/finca/${c.id}/derramas`];
+  };
+  return `<section class="card"><div class="cardhead"><div><h2>Qué tiene pendiente</h2><div class="small muted">Calculado hoy con las cuotas, las derramas y los cobros anotados</div></div></div>
+    <div class="tw"><table><thead><tr><th>Concepto</th><th>Por qué</th><th class="r">Importe</th></tr></thead><tbody>
+    ${dd.det.map(z => { const [k, why, href] = fila(z); return `<tr><td class="b">${href ? `<a href="${href}">${esc(k)}</a>` : esc(k)}</td><td class="small">${esc(why)}</td><td class="r num b neg">${eur(z.falta)}</td></tr>`; }).join('')}
+    <tr class="tot"><td colspan="2">Total pendiente</td><td class="r num">${eur(dd.total)}</td></tr></tbody></table></div></section>`;
 }

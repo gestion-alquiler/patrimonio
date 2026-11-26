@@ -49,7 +49,8 @@ export async function render([id, tab = 'vecinos', sub, extra], d) {
 }
 
 const yearSel = () => { const y0 = new Date().getFullYear(); return `<label class="sr" for="anio">Año</label><select id="anio" class="inp" style="width:auto">${[y0 + 1, y0, y0 - 1, y0 - 2, y0 - 3].map(y => `<option ${y === st.anio ? 'selected' : ''}>${y}</option>`).join('')}</select>`; };
-const resDeuda = (x) => x.det.length <= 3 ? x.det.map(z => z.tipo === 'cuota' ? MES3[z.m - 1] + ' ' + String(z.y).slice(2) : z.tipo === 'saldo' ? 'saldo anterior' : `derrama (plazo ${z.plazo})`).join(', ') : `${x.det.length} recibos`;
+const resDeuda = (x) => { const cu = x.det.filter(z => z.tipo === 'cuota'), de = [...new Set(x.det.filter(z => z.tipo === 'derrama').map(z => z.der))];
+  return [x.det.some(z => z.tipo === 'saldo') ? 'saldo anterior' : '', cu.length ? (cu.length === 1 ? 'cuota ' : 'cuotas ') + [...new Set(cu.map(z => z.y))].map(y => { const ms = cu.filter(z => z.y === y); return (ms.length > 6 ? `${ms.length} meses` : ms.map(z => MES3[z.m - 1].toLowerCase()).join(', ')) + ' ' + String(y).slice(2); }).join(' · ') : '', ...de.map(n => n)].filter(Boolean).join(' · '); };
 
 function vecinos({ c, vs, deudas }) {
   const sc = sumaCoef(vs);
@@ -59,7 +60,7 @@ function vecinos({ c, vs, deudas }) {
     <div class="tw"><table style="min-width:760px"><thead><tr><th>Piso</th><th>Propietario</th><th>Ocupante</th><th class="r">Coef. %</th><th class="r">Cuota</th><th>Pago</th><th>Situación</th></tr></thead><tbody>
     ${vs.map(v => { const dd = deudas[v.id]; return `<tr><td class="b nw"><a class="linkbtn" style="font-size:14px" href="#/finca/${c.id}/vecino/${v.id}">${esc(v.piso)}</a></td><td>${esc(v.propietario)}${v.telefono ? `<div class="small muted">${esc(v.telefono)}</div>` : ''}</td><td class="small">${esc(v.ocupante) || '—'}</td>
       <td class="r num">${coefTxt(v.coef)}</td><td class="r num nw">${eur(cuotaEn(v, new Date().getFullYear(), new Date().getMonth() + 1))}</td><td class="small">${esc(v.formaPago || '—')}</td>
-      <td>${dd.total > 0.1 ? `<span class="badge bad" title="${esc(resDeuda(dd))}">Pendiente ${eur(dd.total)}</span>` : '<span class="badge ok">Al corriente</span>'}</td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Aún no hay vecinos. Añádelos con «+ Vecino».</td></tr>'}
+      <td>${dd.total > 0.1 ? `<a class="badge bad" style="text-decoration:none" href="#/finca/${c.id}/vecino/${v.id}" title="Ver qué tiene pendiente">Pendiente ${eur(dd.total)}</a><div class="small muted" style="margin-top:3px">${esc(resDeuda(dd))}</div>` : '<span class="badge ok">Al corriente</span>'}</td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">Aún no hay vecinos. Añádelos con «+ Vecino».</td></tr>'}
     ${vs.length ? `<tr class="tot"><td>Total</td><td></td><td></td><td class="r num">${coefTxt(sc)}</td><td class="r num nw">${eur(vs.reduce((a, v) => a + cuotaEn(v, new Date().getFullYear(), new Date().getMonth() + 1), 0))}</td><td></td><td></td></tr>` : ''}
     </tbody></table></div></section>`;
 }
